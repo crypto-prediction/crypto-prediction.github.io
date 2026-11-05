@@ -114,7 +114,10 @@ test('browser WebSocket relay sends tickers and subscribed klines', async () => 
   ws.on('message', (b) => { const m = JSON.parse(b); if (m.type === 'ticker') seen.ticker++; if (m.type === 'kline') seen.kline.push(m.data); });
   await new Promise((r) => ws.on('open', r));
   ws.send(JSON.stringify({ type: 'subscribe', symbol: 'ETHUSDT', interval: '5m' }));
-  await new Promise((r) => setTimeout(r, 1500));
+  // a candle for the default stream can arrive before the server has read the subscribe message
+  await new Promise((r) => setTimeout(r, 200));
+  seen.kline.length = 0;
+  await new Promise((r) => setTimeout(r, 1300));
   ws.close();
   assert.ok(seen.ticker > 0);
   assert.ok(seen.kline.length > 0);

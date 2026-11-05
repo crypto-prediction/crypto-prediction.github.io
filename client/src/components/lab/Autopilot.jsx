@@ -15,6 +15,14 @@ export default function Autopilot({ symbols }) {
   const [form, setForm] = useState(null);
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState('');
+  const [older, setOlder] = useState([]);
+  const [noMore, setNoMore] = useState(false);
+  const findings = [...(events.data?.events || []), ...older.filter((o) => !(events.data?.events || []).some((e) => e.id === o.id))];
+  const loadOlder = async () => {
+    const r = await api(`/api/autopilot/events?limit=50&before=${findings.at(-1).id}`);
+    setOlder((o) => [...o, ...r.events]);
+    if (r.events.length < 50) setNoMore(true);
+  };
 
   useEffect(() => {
     const s = cfg.data?.settings;
@@ -97,7 +105,7 @@ export default function Autopilot({ symbols }) {
         <Status loading={events.loading} error={events.error} data={events.data} what="findings" />
         {events.data && !events.data.events.length && <Empty>No findings yet. A finding appears when a watched condition starts on a closed candle.</Empty>}
         <ul className="divide-y divide-ink-700">
-          {events.data?.events.map((e) => (
+          {findings.map((e) => (
             <li key={e.id} className="flex flex-col gap-1 py-2" data-ap-event={e.id}>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-semibold text-slate-200">{baseOf(e.symbol)} · {e.interval}</span>
@@ -111,6 +119,7 @@ export default function Autopilot({ symbols }) {
             </li>
           ))}
         </ul>
+        {!noMore && findings.length >= 50 && <div><button type="button" className="seg" data-ap-more onClick={loadOlder}>Show older findings</button></div>}
       </section>
 
       <section className="panel flex flex-col gap-2" data-ap-runs>

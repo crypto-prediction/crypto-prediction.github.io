@@ -162,7 +162,9 @@ export function dropCoveredFomc(events) {
     && timed.some((t) => Math.abs(Date.parse(t.event_date) - Date.parse(e.event_date)) <= 86400e3)));
 }
 
-export function createCalendar({ pool, cached, fetchImpl = globalThis.fetch, fredKey = () => process.env.FRED_API_KEY || '', fredBase = FRED_BASE, aiClient }) {
+const SYNC_EVERY_MS = 30 * 60e3;
+
+export function createCalendar({ pool, fetchImpl = globalThis.fetch, fredKey = () => process.env.FRED_API_KEY || '', fredBase = FRED_BASE, aiClient }) {
   const status = new Map();
   let lastSync = null;
 
@@ -230,7 +232,16 @@ export function createCalendar({ pool, cached, fetchImpl = globalThis.fetch, fre
   }
 
   const sources = () => [...status.values()];
-  const ensureFresh = () => cached('calendar:sync', 30 * 60e3, sync);
+
+  /** Only waits when nothing is saved yet. Otherwise saved events show straight away and the refresh runs behind them. */
+  let syncing = null;
+  async function ensureFresh() {
+    if (lastSync && Date.now() - lastSync < SYNC_EVERY_MS) return;
+    syncing ||= sync().finally(() => { syncing = null; });
+    const { rows: [{ n }] } = await pool.query('SELECT count(*)::int AS n FROM calendar_events');
+    if (!n) await syncing;
+    else syncing.catch(() => {});
+  }
 
   async function list({ from, to, importance, category } = {}) {
     const now = Date.now();

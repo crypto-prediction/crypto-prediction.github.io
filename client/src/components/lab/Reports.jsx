@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, time } from '../../lib.js';
 import { baseOf } from '../../coins.js';
 import { useApi, Status, AiBadge, Empty } from './common.jsx';
@@ -38,6 +38,17 @@ export default function Reports({ symbol, symbols, onSelect }) {
   if (to) q.set('to', to);
   if (kind) q.set('kind', kind);
   const archive = useApi(`/api/reports?${q}`);
+  const [older, setOlder] = useState([]);
+  const [noMore, setNoMore] = useState(false);
+  useEffect(() => { setOlder([]); setNoMore(false); }, [from, to, kind]);
+  const listed = [...(archive.data?.reports || []), ...older];
+  const loadOlder = async () => {
+    const more = new URLSearchParams(q);
+    more.set('before', listed.at(-1).id);
+    const r = await api(`/api/reports?${more}`);
+    setOlder((o) => [...o, ...r.reports]);
+    if (r.reports.length < 50) setNoMore(true);
+  };
   const open = useApi(openId ? `/api/reports/${openId}` : null);
   const report = openId ? open.data : null;
 
@@ -82,7 +93,7 @@ export default function Reports({ symbol, symbols, onSelect }) {
         <Status loading={archive.loading} error={archive.error} data={archive.data} what="the archive" />
         {archive.data && !archive.data.reports.length && <Empty>No reports for this selection.</Empty>}
         <ul className="divide-y divide-ink-700" data-report-archive>
-          {archive.data?.reports.map((r) => (
+          {listed.map((r) => (
             <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm" data-report-row={r.id}>
               <span>{r.title} <span className="num text-[11px] text-mute">{r.report_date} · {time(r.generated_at)} · {r.trigger === 'schedule' ? 'automatic' : 'manual'}</span></span>
               <span className="flex gap-1">
@@ -92,6 +103,7 @@ export default function Reports({ symbol, symbols, onSelect }) {
             </li>
           ))}
         </ul>
+        {!noMore && listed.length >= 50 && <div><button type="button" className="seg" data-report-more onClick={loadOlder}>Show older reports</button></div>}
       </section>
 
       {openId && (

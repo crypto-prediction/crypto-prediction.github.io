@@ -306,15 +306,15 @@ export function createReports({ pool, tickersNow, overviewFor, forecastFor, hist
     return generate({ kind: 'daily', trigger: 'schedule' });
   }
 
-  async function list({ from, to, kind, symbol, limit } = {}) {
+  async function list({ from, to, kind, symbol, limit, before } = {}) {
     const DAY = /^\d{4}-\d{2}-\d{2}$/;
     if ((from && !DAY.test(from)) || (to && !DAY.test(to))) throw Object.assign(new Error('Dates must look like YYYY-MM-DD'), { status: 400 });
     if (from && to && from > to) throw Object.assign(new Error('The start date must not be after the end date'), { status: 400 });
     const { rows } = await pool.query(
       `SELECT id, kind, symbol, to_char(report_date, 'YYYY-MM-DD') AS report_date, title, trigger, generated_at, ai_summary IS NOT NULL AS has_ai FROM research_reports
-       WHERE ($1::date IS NULL OR report_date >= $1) AND ($2::date IS NULL OR report_date <= $2) AND ($3::text IS NULL OR kind=$3) AND ($4::text IS NULL OR symbol=$4)
-       ORDER BY generated_at DESC LIMIT $5`,
-      [from || null, to || null, kind || null, symbol || null, Math.min(200, Number(limit) || 100)]);
+       WHERE ($1::date IS NULL OR report_date >= $1) AND ($2::date IS NULL OR report_date <= $2) AND ($3::text IS NULL OR kind=$3) AND ($4::text IS NULL OR symbol=$4) AND ($6::bigint IS NULL OR id < $6)
+       ORDER BY id DESC LIMIT $5`,
+      [from || null, to || null, kind || null, symbol || null, Math.min(200, Number(limit) || 50), Number(before) > 0 ? Number(before) : null]);
     return rows;
   }
 

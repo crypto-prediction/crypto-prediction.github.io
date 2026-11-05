@@ -345,6 +345,19 @@ test('a data failure is logged as a failed run and the job survives', async () =
   assert.equal(run.events_new, 0);
 });
 
+test('historical records page by cursor', async () => {
+  for (let i = 0; i < 3; i++) await pool.query(`INSERT INTO autopilot_events (dedupe_key, symbol, interval, condition, message, as_of) VALUES ($1,'BTCUSDT','1h','macd_cross','page test',now())`, [`page-${i}`]);
+  const first = (await get('/api/autopilot/events?limit=2')).body.events;
+  assert.equal(first.length, 2);
+  const next = (await get(`/api/autopilot/events?limit=2&before=${first[1].id}`)).body.events;
+  assert.ok(next.length >= 1);
+  assert.ok(next.every((e) => Number(e.id) < Number(first[1].id)));
+  const reports = (await get('/api/reports?limit=1')).body.reports;
+  const older = (await get(`/api/reports?limit=1&before=${reports[0].id}`)).body.reports;
+  assert.ok(older.every((r) => Number(r.id) < Number(reports[0].id)));
+  assert.equal((await get('/api/autopilot/runs?limit=1')).body.length, 1);
+});
+
 test('two runs at once share one run', async () => {
   const [a, b] = await Promise.all([post('/api/autopilot/run'), post('/api/autopilot/run')]);
   assert.equal(a.body.id, b.body.id);

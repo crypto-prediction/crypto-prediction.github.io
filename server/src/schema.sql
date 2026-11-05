@@ -274,5 +274,112 @@ CREATE TABLE IF NOT EXISTS autopilot_audit (
   detail JSONB NOT NULL DEFAULT '{}'
 );
 
+-- written only at the moment an approved strategy places a paper order, so it can't be attached later
+CREATE TABLE IF NOT EXISTS strategy_orders (
+  trade_id    BIGINT PRIMARY KEY,
+  strategy_id BIGINT NOT NULL,
+  config_hash TEXT NOT NULL,
+  placed_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS arena_profiles (
+  id         BIGSERIAL PRIMARY KEY,
+  handle     TEXT NOT NULL,
+  bio        TEXT NOT NULL DEFAULT '',
+  is_local   BOOLEAN NOT NULL DEFAULT false,
+  hidden     BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS arena_profiles_handle_idx ON arena_profiles (lower(handle));
+CREATE UNIQUE INDEX IF NOT EXISTS arena_profiles_local_idx ON arena_profiles (is_local) WHERE is_local;
+
+CREATE TABLE IF NOT EXISTS arena_strategies (
+  id           BIGSERIAL PRIMARY KEY,
+  profile_id   BIGINT NOT NULL REFERENCES arena_profiles(id),
+  strategy_id  BIGINT REFERENCES strategies(id) ON DELETE SET NULL,
+  name         TEXT NOT NULL,
+  description  TEXT NOT NULL,
+  category     TEXT NOT NULL,
+  config       JSONB NOT NULL,
+  config_hash  TEXT NOT NULL,
+  symbol       TEXT NOT NULL,
+  interval     TEXT NOT NULL,
+  share_paper  BOOLEAN NOT NULL DEFAULT false,
+  paper_since  TIMESTAMPTZ,
+  risk_rating  TEXT NOT NULL,
+  risk_reasons JSONB NOT NULL DEFAULT '[]',
+  backtest     JSONB,
+  backtest_at  TIMESTAMPTZ,
+  status       TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published','withdrawn')),
+  hidden       BOOLEAN NOT NULL DEFAULT false,
+  published_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (profile_id, config_hash)
+);
+
+CREATE TABLE IF NOT EXISTS arena_verified_trades (
+  trade_id          BIGINT PRIMARY KEY,
+  arena_strategy_id BIGINT NOT NULL REFERENCES arena_strategies(id) ON DELETE CASCADE,
+  side              TEXT NOT NULL,
+  return_pct        DOUBLE PRECISION,
+  trade_time        TIMESTAMPTZ NOT NULL,
+  captured_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS arena_comments (
+  id                BIGSERIAL PRIMARY KEY,
+  arena_strategy_id BIGINT NOT NULL REFERENCES arena_strategies(id) ON DELETE CASCADE,
+  profile_id        BIGINT NOT NULL REFERENCES arena_profiles(id),
+  body              TEXT NOT NULL,
+  hidden            BOOLEAN NOT NULL DEFAULT false,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS arena_ratings (
+  arena_strategy_id BIGINT NOT NULL REFERENCES arena_strategies(id) ON DELETE CASCADE,
+  profile_id        BIGINT NOT NULL REFERENCES arena_profiles(id),
+  stars             INT NOT NULL CHECK (stars BETWEEN 1 AND 5),
+  PRIMARY KEY (arena_strategy_id, profile_id)
+);
+
+CREATE TABLE IF NOT EXISTS arena_follows (
+  follower_id BIGINT NOT NULL REFERENCES arena_profiles(id),
+  followee_id BIGINT NOT NULL REFERENCES arena_profiles(id),
+  PRIMARY KEY (follower_id, followee_id),
+  CHECK (follower_id <> followee_id)
+);
+
+CREATE TABLE IF NOT EXISTS arena_favourites (
+  arena_strategy_id BIGINT NOT NULL REFERENCES arena_strategies(id) ON DELETE CASCADE,
+  profile_id        BIGINT NOT NULL REFERENCES arena_profiles(id),
+  PRIMARY KEY (arena_strategy_id, profile_id)
+);
+
+CREATE TABLE IF NOT EXISTS arena_reports (
+  id          BIGSERIAL PRIMARY KEY,
+  reporter_id BIGINT NOT NULL REFERENCES arena_profiles(id),
+  target_type TEXT NOT NULL CHECK (target_type IN ('strategy','comment','profile')),
+  target_id   BIGINT NOT NULL,
+  reason      TEXT NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved','dismissed')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (reporter_id, target_type, target_id)
+);
+
+CREATE TABLE IF NOT EXISTS arena_moderation_log (
+  id          BIGSERIAL PRIMARY KEY,
+  at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  target_type TEXT NOT NULL,
+  target_id   BIGINT NOT NULL,
+  action      TEXT NOT NULL,
+  reason      TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS arena_strategies_board_idx ON arena_strategies(status, hidden);
+CREATE INDEX IF NOT EXISTS arena_comments_strategy_idx ON arena_comments(arena_strategy_id, id);
+CREATE INDEX IF NOT EXISTS arena_comments_recent_idx ON arena_comments(profile_id, created_at);
+CREATE INDEX IF NOT EXISTS arena_verified_strategy_idx ON arena_verified_trades(arena_strategy_id);
+CREATE INDEX IF NOT EXISTS research_reports_generated_idx ON research_reports(generated_at DESC);
+CREATE INDEX IF NOT EXISTS autopilot_runs_purge_idx ON autopilot_runs(started_at) WHERE events_new = 0;
+
 INSERT INTO paper_accounts (id, name) VALUES (1, 'Default') ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('paper_accounts','id'), GREATEST(1, (SELECT MAX(id) FROM paper_accounts)));

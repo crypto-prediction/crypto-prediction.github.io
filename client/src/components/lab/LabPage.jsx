@@ -26,6 +26,7 @@ const GROUPS = [
     ['builder', 'Strategy builder', lazy(() => import('./StrategyBuilder.jsx'))],
     ['backtest', 'Backtest lab', lazy(() => import('./BacktestLab.jsx'))],
     ['replay', 'Market replay', lazy(() => import('./Replay.jsx'))],
+    ['arena', 'Arena', lazy(() => import('./Arena.jsx'))],
   ]],
   ['Portfolio', [
     ['portfolio', 'Portfolio', lazy(() => import('./PortfolioIntel.jsx'))],

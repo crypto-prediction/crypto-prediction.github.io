@@ -354,15 +354,15 @@ export function createAutopilot({ pool, markets, historyFor, tickersNow, forecas
   const pause = async () => { await getSettings(); return setState({ paused: true }, 'paused'); };
   const resume = async () => { await getSettings(); return setState({ paused: false }, 'resumed'); };
 
-  async function listEvents({ limit, symbol } = {}) {
+  async function listEvents({ limit, symbol, before } = {}) {
     const { rows } = await pool.query(
-      'SELECT * FROM autopilot_events WHERE ($1::text IS NULL OR symbol=$1) ORDER BY id DESC LIMIT $2',
-      [symbol || null, Math.min(200, Number(limit) || 50)]);
+      'SELECT * FROM autopilot_events WHERE ($1::text IS NULL OR symbol=$1) AND ($3::bigint IS NULL OR id < $3) ORDER BY id DESC LIMIT $2',
+      [symbol || null, Math.min(200, Number(limit) || 50), Number(before) > 0 ? Number(before) : null]);
     const { rows: [u] } = await pool.query('SELECT COUNT(*)::int AS unread FROM autopilot_events WHERE NOT read');
     return { events: rows, unread: u.unread };
   }
   const markRead = () => pool.query('UPDATE autopilot_events SET read=true WHERE NOT read');
-  const listRuns = async (limit) => (await pool.query('SELECT * FROM autopilot_runs ORDER BY id DESC LIMIT $1', [Math.min(200, Number(limit) || 30)])).rows;
+  const listRuns = async (limit, before) => (await pool.query('SELECT * FROM autopilot_runs WHERE ($2::bigint IS NULL OR id < $2) ORDER BY id DESC LIMIT $1', [Math.min(200, Number(limit) || 30), Number(before) > 0 ? Number(before) : null])).rows;
   const listAudit = async (limit) => (await pool.query('SELECT * FROM autopilot_audit ORDER BY id DESC LIMIT $1', [Math.min(200, Number(limit) || 50)])).rows;
   // quiet runs add up quickly, so only those are pruned. Runs that found something, events and the audit log are kept.
   const purgeRuns = () => pool.query(`DELETE FROM autopilot_runs WHERE started_at < now() - interval '30 days' AND events_new = 0 AND status = 'ok'`);

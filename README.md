@@ -151,6 +151,18 @@ A separate page at **http://localhost:5173/lab.html**. The dashboard stays the l
 | Activity | Order book, unusual volume, sudden moves, large unconfirmed BTC transfers | Binance; blockchain.info for on-chain data |
 | Backtest lab | Coins, strategies, timeframes and periods compared; walk-forward validation | Binance history |
 | News | Latest articles with coin filters | CoinDesk, Cointelegraph and Decrypt RSS |
+| Order book | Live top of book, depth chart, imbalance, large visible orders | Binance spot depth, by REST and WebSocket |
+| Futures | Funding, open interest, long/short ratio, basis, kept apart from spot | Binance USD-M perpetuals |
+| Liquidations | A modelled heatmap, always labelled as an estimate, beside events Binance actually reported | Binance open interest; Binance forced-order stream |
+| Exchanges | Bid, ask, spread, depth, costs and a theoretical difference that is never traded | Public APIs of Binance, Coinbase, Kraken, OKX, Bybit |
+| Calendar | Month view, upcoming events, importance, previous and forecast values, source links | ForexFactory weekly export, Federal Reserve, SEC, CFTC |
+| Reports | Daily and per-coin reports, archive, date ranges, PDF export | The modules above, with a timestamp and source on each section |
+| Strategy builder | Words become validated rules. Review and approval come first. Backtests, and paper orders you confirm | Binance; Claude for parsing when available, otherwise a labelled rule reader |
+| Market replay | Step through past candles with simulated orders, optionally with a built strategy | Binance history; the paper account isn't touched |
+| Arena | Publish strategies, with backtests and verified paper results ranked apart | Computed by this server |
+| Risk simulator | Scenarios, VaR and CVaR on the current portfolio. It writes nothing | Paper account (read only) and Binance |
+| Trading journal | Round trips from paper trades, with your notes kept separately | Paper trades (read only) |
+| Autopilot | Scheduled research, off by default: conditions, findings, activity and audit logs. It cannot trade | The shared market data, forecast, news and calendar services |
 
 **External services**
 
@@ -160,6 +172,12 @@ A separate page at **http://localhost:5173/lab.html**. The dashboard stays the l
 | blockchain.info | No | Sample of large unconfirmed Bitcoin transfers |
 | CoinDesk, Cointelegraph, Decrypt RSS | No | News |
 | Anthropic API | `ANTHROPIC_API_KEY` with credits | Optional: Explain, chat answers, news summaries |
+| Binance USD-M futures | No | Futures tab, liquidation data |
+| Coinbase, Kraken, OKX, Bybit public APIs | No | Exchanges tab. Fees are editable starting values, and withdrawal fees are entered by you |
+| ForexFactory weekly export | No | Calendar. Covers the current week only, with no actual values |
+| Federal Reserve, SEC, CFTC | No | FOMC dates and published press releases |
+| FRED | `FRED_API_KEY` (free) | Optional: actual US release values in the Calendar |
+| Crypto events provider | Not connected | No reliable free source, so upgrades, unlocks and conferences aren't listed |
 | On-chain data provider | Not connected | Exchange inflows and outflows and other chains need a paid provider, so they are shown as not connected |
 
 **How the forecast works.** Each coin and horizon gets an L2 logistic regression on 8 technical features, using closed candles only. History is split in time order into training, tuning and test sets. The tuning set decides how much of the model's lean to keep, so a lean with no evidence behind it collapses to the coin's base rate. Confidence stays Low unless the model beats that base rate on at least 20 independent test periods. Expect most readings to sit near 50%. This is a statistics model, and the UI labels it as not AI.
@@ -167,6 +185,12 @@ A separate page at **http://localhost:5173/lab.html**. The dashboard stays the l
 **How the tracker works.** While the server runs, it saves one forecast per coin, horizon and closed candle, then scores each against the real close at its target time. Nothing is estimated: with no outcomes, every metric is empty. Longer horizons take up to 7 days to score, and neighbouring forecasts overlap, so they aren't fully independent.
 
 **Alerts** run on the server, so they keep working with the page closed for as long as the server is running. Anything that fires while you're away appears when you return. There are no phone, email or desktop notifications.
+
+**Autopilot** starts off and only researches. It is never given the paper-trading module, so it has no way to place an order, and a test checks that. A unique key stops the same reading being recorded twice, including after a restart. During quiet hours findings are saved without a notification.
+
+**Reports** save one daily report per UTC day while the server is running, and you can create more by hand. If a source fails, its section says so and the rest of the report carries on. Without AI, the summary is rule-based and labelled that way.
+
+**The Arena is local for now.** This project has no user accounts, so there is one local profile and nobody else can see your strategies. Comments, ratings, follows, reports and moderation all work and are tested, but a real community needs hosting plus accounts, and moderator roles first. Published figures are computed here and submitted numbers are ignored. Paper results are opt-in and show percentages only. A strategy only earns round trips it opened itself from a flat position under the exact published rules, after sharing was turned on.
 
 **Backtest verdicts.** The strongest reading is "Held up in this test". Below 30 trades the only reading is "Insufficient trades". Nothing is ever labelled profitable.
 
@@ -191,7 +215,7 @@ npm test                                                      # both
 
 Use a separate, disposable database for `TEST_DATABASE_URL`, because the tests drop and recreate the tables. If port 5432 is taken, use the port your database container is published on.
 
-- **Server (130 tests):** indicators against reference calculations and for no look-ahead; the backtester's arithmetic; the Binance client's retries, rate limits and reconnects; paper accounting on PostgreSQL; `test/pairs.test.js`, which runs candles, indicators, signal, backtest and paper trading for each of the 10 pairs and checks that a delisted pair is refused without affecting the others; and `test/intel.test.js` and `test/intel-api.test.js`, which cover forecasts, tracker scoring, alerts, portfolio analysis, activity, news, the backtest lab and AI status. The API tests run the real app against a local fake Binance (`test/support/mock-binance.js`), whose formula prices exist only for tests.
+- **Server (259 tests):** indicators against reference calculations and for no look-ahead; the backtester's arithmetic; the Binance client's retries, rate limits and reconnects; paper accounting on PostgreSQL; `test/pairs.test.js`, which runs candles, indicators, signal, backtest and paper trading for each of the 10 pairs and checks that a delisted pair is refused without affecting the others; and `test/intel.test.js` and `test/intel-api.test.js`, which cover forecasts, tracker scoring, alerts, portfolio analysis, activity, news, the backtest lab and AI status. The API tests run the real app against a local fake Binance (`test/support/mock-binance.js`), whose formula prices exist only for tests.
 - **Client (10 tests):** price formatting from BTC down to sub-cent coins, the coin registry, heatmap filters, and the chart and globe maths. There are no component tests in the repository; browser behaviour was checked separately with a scripted browser.
 
 ## Limits worth knowing

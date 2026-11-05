@@ -1,6 +1,7 @@
 // AI Strategy Builder. A strategy is plain data in a restricted format: named indicators, fixed
 // operators and numbers. Nothing from a user or an AI model is ever executed as code. Text is turned into
 // this format, validated, reviewed and approved by the user before it can be used for paper trading.
+import { createHash } from 'node:crypto';
 import { computeAll } from '../indicators.js';
 import { backtestMetrics, downsample, INTERVAL_MS } from '../backtest.js';
 import { COINS, coinInfo } from '../coins.js';
@@ -129,6 +130,13 @@ export function checkGroup(group, series, i) {
 }
 
 const operandText = (o) => (o.kind === 'value' ? String(o.value) : INDICATORS[o.name]);
+/** Identifies a strategy's rules. The display name isn't part of them. */
+export function configHash(config) {
+  const stable = (v) => (Array.isArray(v) ? v.map(stable) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, stable(v[k])])) : v);
+  const { name: _name, ...rules } = config;
+  return createHash('sha256').update(JSON.stringify(stable(rules))).digest('hex');
+}
+
 export const describeCondition = (c) => `${operandText(c.left)} ${OPERATORS[c.op]} ${operandText(c.right)}`;
 
 /** What the strategy says at candle i. It only reports; it never places an order. */

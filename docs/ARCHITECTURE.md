@@ -33,11 +33,18 @@ server/src/
   ai.js               the only code that calls the Anthropic API
   intel/              everything behind the Intelligence Lab
     routes.js         registers the intel routes and background jobs
+    routes-research.js  replay, strategy builder, risk simulator, journal
+    routes-markets.js   order book, futures, liquidations, exchanges
+    routes-automation.js  calendar, reports, autopilot
+    arena.js          community arena, with its own routes
+    pdf.js            text-only PDF writer with no dependencies
 ```
 
 Shared services are passed in through one context object: `historyFor` and `overviewFor` for market data, `cached` for short-lived caching and request de-duplication, `tickersNow` for live prices, and `paper` and `lookup` for the account. New modules use these rather than calling Binance on their own.
 
 ## Database
+
+`strategy_orders` is written only when an approved strategy places a paper order, together with a hash of its rules. The Arena's verified results read that table, not the journal's strategy field, because journal notes can be edited later. `arena_verified_trades` keeps a percentage-only copy, so a paper account reset doesn't erase a verified record.
 
 `server/src/schema.sql` runs at every start. It only adds tables, with `CREATE TABLE IF NOT EXISTS`, and it never alters or removes paper-trading data. Only `paper.js` writes to the `paper_*` tables.
 
@@ -46,7 +53,12 @@ Shared services are passed in through one context object: `historyFor` and `over
 - Prices and candles come from real sources only. If a source can't be read, the UI says so and shows no data in its place.
 - Modelled estimates are labelled as estimates, and AI text as AI. When AI isn't available, answers are labelled as rule-based.
 - Spot and derivatives data stay apart, and paper trading only ever uses Binance spot prices.
-- Nothing trades automatically. A paper order always comes from an explicit click.
+- Nothing trades automatically. A paper order always comes from an explicit click. Autopilot never receives the paper module.
+- Calendar events and report sections keep their source. Missing data is reported as missing.
+
+## Before hosting
+
+The app has no authentication, and everything assumes one person on their own machine: the paper account, the Arena's local profile, and moderation. Before putting it on a network, add accounts, per-user data, moderator roles and request rate limits.
 
 ## Tests
 

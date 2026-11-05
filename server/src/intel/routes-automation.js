@@ -9,10 +9,10 @@ const REPORT_CHECK_EVERY_MS = 15 * 60e3;
 const AUTOPILOT_EVERY_MS = 5 * 60e3;
 
 export function attachAutomation(app, ctx, deps) {
-  const { pool, markets, cached, wrap, sym, historyFor, overviewFor, tickersNow, fetchImpl, aiClient } = ctx;
+  const { pool, markets, wrap, sym, historyFor, overviewFor, tickersNow, fetchImpl, aiClient } = ctx;
   const { tracker, news, forecastFor, orderBook, futures, exchanges, liquidations } = deps;
 
-  const calendar = createCalendar({ pool, cached, fetchImpl: fetchImpl || globalThis.fetch, aiClient });
+  const calendar = createCalendar({ pool, fetchImpl: fetchImpl || globalThis.fetch, aiClient });
   const reports = createReports({ pool, tickersNow, overviewFor, forecastFor, historyFor, tracker, news, calendar, orderBook, futures, exchanges, liquidations, isActive: markets.isActive, aiClient });
   // the paper-trading module is deliberately not passed to Autopilot
   const autopilot = createAutopilot({ pool, markets, historyFor, tickersNow, forecastFor, news, calendar, aiClient });
@@ -40,9 +40,9 @@ export function attachAutomation(app, ctx, deps) {
   // ---- reports
   const symbolQuery = (v) => (v ? sym(v) : null);
   app.get('/api/reports', wrap(async (req, res) => {
-    const { from, to, kind, limit } = req.query;
+    const { from, to, kind, limit, before } = req.query;
     if (kind && !['daily', 'coin'].includes(kind)) return res.status(400).json({ error: 'Report type must be daily or coin' });
-    res.json({ reports: await reports.list({ from, to, kind, symbol: symbolQuery(req.query.symbol), limit }), disclaimer: DISCLAIMER, ai: aiStatus() });
+    res.json({ reports: await reports.list({ from, to, kind, before, symbol: symbolQuery(req.query.symbol), limit }), disclaimer: DISCLAIMER, ai: aiStatus() });
   }));
   app.post('/api/reports/generate', wrap(async (req, res) => {
     const kind = String(req.body?.kind || 'daily');
@@ -66,9 +66,9 @@ export function attachAutomation(app, ctx, deps) {
     await autopilot.audit('manual_run');
     res.json(await autopilot.runOnce('manual'));
   }));
-  app.get('/api/autopilot/events', wrap(async (req, res) => res.json(await autopilot.listEvents({ limit: req.query.limit, symbol: symbolQuery(req.query.symbol) }))));
+  app.get('/api/autopilot/events', wrap(async (req, res) => res.json(await autopilot.listEvents({ limit: req.query.limit, before: req.query.before, symbol: symbolQuery(req.query.symbol) }))));
   app.post('/api/autopilot/events/read', wrap(async (_req, res) => { await autopilot.markRead(); res.json({ ok: true }); }));
-  app.get('/api/autopilot/runs', wrap(async (req, res) => res.json(await autopilot.listRuns(req.query.limit))));
+  app.get('/api/autopilot/runs', wrap(async (req, res) => res.json(await autopilot.listRuns(req.query.limit, req.query.before))));
   app.get('/api/autopilot/audit', wrap(async (req, res) => res.json(await autopilot.listAudit(req.query.limit))));
 
   function startJobs() {

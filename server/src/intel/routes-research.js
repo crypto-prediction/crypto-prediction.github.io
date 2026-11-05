@@ -6,7 +6,7 @@ import { createReplay } from './replay.js';
 import { createJournal, REVIEW_SYSTEM } from './journal.js';
 import { normalizeScenario, simulateRisk } from './risk.js';
 import {
-  backtestStrategy, buildSeries, INDICATORS, OPERATORS, parseAiDraft, parseStrategyText, strategyDescription, STRATEGY_SYSTEM, strategySignalAt, validateStrategyConfig,
+  backtestStrategy, buildSeries, configHash, INDICATORS, OPERATORS, parseAiDraft, parseStrategyText, strategyDescription, STRATEGY_SYSTEM, strategySignalAt, validateStrategyConfig,
 } from './strategy.js';
 
 export function attachResearch(app, ctx) {
@@ -119,6 +119,7 @@ export function attachResearch(app, ctx) {
     if (req.body?.confirmed !== true) return res.status(400).json({ error: 'A paper order needs your confirmation' });
     const side = String(req.body.side || '').toUpperCase();
     const trade = await paper.order({ symbol: s.config.symbol, side, amountUsd: req.body.amountUsd, closeAll: Boolean(req.body.closeAll) });
+    await pool.query('INSERT INTO strategy_orders (trade_id, strategy_id, config_hash) VALUES ($1,$2,$3) ON CONFLICT (trade_id) DO NOTHING', [trade.id, s.id, configHash(s.config)]);
     const d = strategyDescription(s.config);
     await pool.query(
       `INSERT INTO journal_annotations (trade_id, entry_reason, exit_reason, strategy_id) VALUES ($1,$2,$3,$4) ON CONFLICT (trade_id) DO NOTHING`,
