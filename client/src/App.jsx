@@ -89,7 +89,7 @@ export default function App() {
     <div className="mx-auto flex max-w-[1500px] flex-col gap-4 px-4 py-4 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-3 border-b border-ink-700 pb-3">
         <div>
-          <h1 className="font-display text-xl font-bold tracking-wide">Signal<span className="text-cyan-neon">Lab</span> <span className="text-mute">/ crypto research</span></h1>
+          <h1 className="font-display text-xl font-bold tracking-wide">Signal<span className="text-cyan-neon">Lab</span> <span className="text-mute">/ crypto research</span><a data-lab-link href="/lab.html" aria-label="Intelligence Lab" className="absolute ml-2 mt-1 whitespace-nowrap rounded border border-cyan-neon/60 px-1 text-[11px] font-normal leading-5 text-cyan-neon md:ml-3 md:px-2"><span className="hidden md:inline">Intelligence </span>Lab</a></h1>
           <p className="text-xs text-mute">Real Binance market data · technical analysis · backtesting · paper trading</p>
         </div>
         <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Candle interval">

@@ -62,6 +62,10 @@ PROTECTED_FILES = [
     "client/src/components/Market.jsx",
     "client/src/components/Paper.jsx",
 ]
+# Changes the owner explicitly approved. The file must equal the baseline once this exact text is taken out.
+APPROVED_ADDITIONS = {
+    "client/src/App.jsx": '<a data-lab-link href="/lab.html" aria-label="Intelligence Lab" className="absolute ml-2 mt-1 whitespace-nowrap rounded border border-cyan-neon/60 px-1 text-[11px] font-normal leading-5 text-cyan-neon md:ml-3 md:px-2"><span className="hidden md:inline">Intelligence </span>Lab</a>',
+}
 DESIGN_FILES = ["client/src/index.css", "client/tailwind.config.js", "client/postcss.config.js", "client/index.html"]
 
 NO_WEBGL = "const g=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(t,...a){return /webgl/.test(t)?null:g.call(this,t,...a)};"
@@ -69,7 +73,7 @@ FREEZE = "*,*::before,*::after{animation:none!important;transition:none!importan
 SNAPSHOT = """() => {
   const rect = (e) => { const r = e.getBoundingClientRect(); return [Math.round(r.x), Math.round(r.y + scrollY), Math.round(r.width), Math.round(r.height)]; };
   const style = (e) => { const c = getComputedStyle(e); return [c.color, c.backgroundColor, c.backgroundImage, c.borderTopColor, c.fontFamily, c.fontSize, c.fontWeight, c.letterSpacing, c.lineHeight, c.borderRadius, c.padding, c.margin, c.boxShadow, c.position, c.display]; };
-  const all = [...document.body.querySelectorAll('*')].filter((e) => !['CANVAS', 'SCRIPT', 'STYLE'].includes(e.tagName) && !e.closest('table'));
+  const all = [...document.body.querySelectorAll('*')].filter((e) => !['CANVAS', 'SCRIPT', 'STYLE'].includes(e.tagName) && !e.closest('table') && !e.closest('[data-lab-link]'));
   return {
     elements: all.length,
     structure: all.map((e) => e.tagName + '.' + (e.getAttribute('class') || '')),
@@ -284,6 +288,16 @@ def record(browser, target):
     print(f"  recorded {len(lines)} protected file hashes and {len(DESIGN_FILES)} design files")
 
 
+def is_approved(path):
+    """True if the only difference from the baseline is the exact text the owner approved, used once."""
+    addition = APPROVED_ADDITIONS.get(path)
+    if not addition:
+        return False
+    current = (REPO / path).read_text(encoding="utf8").replace("\r\n", "\n")
+    baseline = git("show", f"{BRANCH}:{path}").stdout.decode("utf8").replace("\r\n", "\n")
+    return current.count(addition) == 1 and current.replace(addition, "") == baseline
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--current", default="http://localhost:5173", help="the running dashboard to check")
@@ -298,12 +312,16 @@ def main():
     print(f"Protected baseline: {BRANCH} at {git('rev-parse', '--short', BRANCH).stdout.decode().strip()}")
     print("Protected files")
     changed = git("diff", "--name-only", BRANCH, "--", *PROTECTED_FILES).stdout.decode().split()
+    approved = [path for path in changed if is_approved(path)]
+    changed = [path for path in changed if path not in approved]
+    for path in approved:
+        print(f"  ok   {path} differs only by its approved addition")
     if changed:
         print(f"  FAIL {len(changed)} of {len(PROTECTED_FILES)} differ from the baseline:")
         for path in changed:
             print(f"       {path}")
     else:
-        print(f"  ok   all {len(PROTECTED_FILES)} match the baseline byte for byte")
+        print(f"  ok   the other {len(PROTECTED_FILES) - len(approved)} match the baseline byte for byte")
 
     with Baseline(), sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome", headless=True, args=GPU_ARGS)

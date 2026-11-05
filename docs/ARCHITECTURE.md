@@ -11,7 +11,7 @@ The Lab imports the dashboard's styles and some of its components, and never cha
 
 ## Protected UI
 
-Branch `signal-lab-ui-protected` is the approved dashboard. Check against it after any change, with the app running:
+Branch `signal-lab-ui-protected` is the approved dashboard. The one approved difference is the Intelligence Lab link beside the title in `App.jsx`. It is absolutely positioned, so it takes no layout space, and `APPROVED_ADDITIONS` in the regression script allows only that exact text. Check against the branch after any change, with the app running:
 
 ```bash
 python scripts/ui_regression.py
