@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { compact, pct, price } from '../../format.js';
 import { baseOf, nameOf } from '../../coins.js';
-import { heatmapRows, HEATMAP_FILTERS } from '../../metrics.js';
+import { heatmapRows, HEATMAP_FILTERS } from './heatmap.js';
 import { Empty } from './common.jsx';
 
 // strength follows the size of the 24h move; the printed number carries the exact value
@@ -17,7 +17,7 @@ export default function Heatmap({ symbols, tickers, restTickers, overview, symbo
   const rows = heatmapRows(symbols, merged, overview.coins, filter);
   return (
     <section className="panel" data-heatmap>
-      <div className="panel-title"><span>Live market heatmap</span><span className="font-normal normal-case tracking-normal text-mute">Colour shows the 24h change. Click a coin to select it.</span></div>
+      <div className="panel-title"><span>Live market heatmap</span><span className="font-normal normal-case tracking-normal text-mute">Colour shows the 24h change. Clicking a coin also selects it in the Activity and Analyst tabs.</span></div>
       <div className="mb-3 flex flex-wrap gap-1" role="group" aria-label="Filter coins">
         {HEATMAP_FILTERS.map(([k, label]) => <button key={k} type="button" data-filter={k} className="seg" aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
       </div>
@@ -46,7 +46,7 @@ export default function Heatmap({ symbols, tickers, restTickers, overview, symbo
           ))}
         </div>
       )}
-      <p className="mt-2 text-[11px] text-mute">Prices and 24h stats are live from Binance. Volatility, direction and signals come from closed candles at the selected interval.</p>
+      <p className="mt-2 text-[11px] text-mute">Prices and 24h stats are live from Binance. Volatility, direction and signals come from closed 1h candles.</p>
     </section>
   );
 }

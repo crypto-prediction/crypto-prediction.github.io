@@ -2,12 +2,15 @@ import { compact, fmt, pct, price, time } from '../../lib.js';
 import { baseOf, nameOf } from '../../coins.js';
 import { useApi, Status, Stat, StatGrid, Empty } from './common.jsx';
 
-export default function Activity({ symbol }) {
+export default function Activity({ symbol, symbols, onSelect }) {
   const { data: d, error, loading } = useApi(`/api/activity?symbol=${symbol}`, { every: 15000 });
   const book = d?.exchange.orderBook;
   const btc = d?.onChain.bitcoin;
   return (
     <div className="flex flex-col gap-4" data-activity>
+      <div className="flex flex-wrap gap-1" role="group" aria-label="Choose a coin">
+        {symbols.map((s) => <button key={s} type="button" data-activity-coin={s} className="seg" aria-pressed={symbol === s} onClick={() => onSelect(s)}>{baseOf(s)}</button>)}
+      </div>
       <Status loading={loading} error={error} data={d} what="market activity" />
       {d && (
         <>

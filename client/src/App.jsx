@@ -9,7 +9,6 @@ import { PaperPanel } from './components/Paper.jsx';
 import { FilamentTorus } from './components/FilamentTorus.jsx';
 import { Insights } from './components/Insights.jsx';
 import { useMarketSeries, useOverview } from './market.js';
-import { IntelligenceLab } from './components/lab/IntelligenceLab.jsx';
 
 const NO_SYMBOLS = [];
 const OVERLAYS = [['ema20', 'EMA 20', 'text-cyan-neon'], ['ema50', 'EMA 50', 'text-violet-neon'], ['ema200', 'EMA 200', 'text-amber-neon'], ['bb', 'Bollinger', 'text-slate-300'], ['volume', 'Volume', 'text-slate-300']];
@@ -69,9 +68,7 @@ export default function App() {
     setLive(k);
     if (k.closed) { loadCandles(); setClosedCount((n) => n + 1); }
   }, [symbol, interval, loadCandles]);
-  const [lastAlert, setLastAlert] = useState(null);
-  const [labOpen, setLabOpen] = useState(false);
-  const { tickers, status, lastMsg } = useLive(symbol, interval, onKline, setLastAlert);
+  const { tickers, status, lastMsg } = useLive(symbol, interval, onKline);
 
   const livePrice = tickers[symbol]?.lastPrice ?? null;
   const symbols = meta?.symbols || NO_SYMBOLS;
@@ -103,7 +100,7 @@ export default function App() {
       </header>
 
       <section className="h-[300px] overflow-hidden rounded-md border border-ink-700 sm:h-[460px]">
-        <FilamentTorus series={market.series} interval={market.interval} error={market.error} tickers={tickers} overview={overview.coins} selected={symbol} onSelect={setSymbol} suspended={labOpen} />
+        <FilamentTorus series={market.series} interval={market.interval} error={market.error} tickers={tickers} overview={overview.coins} selected={symbol} onSelect={setSymbol} />
       </section>
 
       <UnavailableCoins coins={meta.coins} />
@@ -140,8 +137,6 @@ export default function App() {
       <footer className="border-t border-ink-700 pt-3 text-[11px] leading-relaxed text-mute">
         Market data: Binance spot public endpoints (REST and WebSocket). Signals and backtests are research tools, not financial advice. Paper trading is simulated and kept separate from any real account; no exchange keys are used.
       </footer>
-
-      <IntelligenceLab open={labOpen} setOpen={setLabOpen} symbol={symbol} onSelect={setSymbol} symbols={symbols} tickers={tickers} restTickers={restTickers} overview={overview} interval={interval} meta={meta} lastAlert={lastAlert} />
     </div>
   );
 }

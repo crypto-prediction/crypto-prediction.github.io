@@ -63,38 +63,6 @@ export function topSlices(slices, keep = 5, otherColor = '#5B6472') {
   return [...sorted.slice(0, keep), { label: `Other (${rest.length})`, value, color: otherColor, members: rest.map((s) => s.label) }];
 }
 
-export const HEATMAP_FILTERS = [
-  ['all', 'All'], ['gainers', 'Top gainers'], ['losers', 'Top losers'], ['volume', 'Highest volume'],
-  ['volatility', 'Highest volatility'], ['bullish', 'Bullish signals'], ['bearish', 'Bearish signals'],
-];
-
-/** One row per coin for the heatmap. Missing readings stay null; filters only ever remove or reorder real rows. */
-export function heatmapRows(symbols, tickers, overview, filter = 'all') {
-  const rows = symbols.map((symbol) => {
-    const t = tickers?.[symbol];
-    const o = overview?.[symbol];
-    return {
-      symbol,
-      price: t?.lastPrice ?? null,
-      change: t?.priceChangePercent ?? null,
-      volume: t?.quoteVolume ?? null,
-      volatility: o?.volatilityPct ?? null,
-      trend: o?.trend ?? null,
-      signal: o?.signal ?? null,
-    };
-  });
-  const by = (key, dir = -1) => (a, b) => (b[key] - a[key]) * (-dir); // dir -1 is largest first
-  switch (filter) {
-    case 'gainers': return rows.filter((r) => r.change > 0).sort(by('change'));
-    case 'losers': return rows.filter((r) => r.change !== null && r.change < 0).sort(by('change', 1));
-    case 'volume': return rows.filter((r) => r.volume !== null).sort(by('volume'));
-    case 'volatility': return rows.filter((r) => r.volatility !== null).sort(by('volatility'));
-    case 'bullish': return rows.filter((r) => r.signal === 'BUY' || r.trend === 'Uptrend');
-    case 'bearish': return rows.filter((r) => r.signal === 'SELL' || r.trend === 'Downtrend');
-    default: return rows;
-  }
-}
-
 /** Market activity from 0 to 1: the latest candle's volume vs its 20-candle average. No reading means no activity shown. */
 export function activityLevel(relativeVolume) {
   if (relativeVolume === null || relativeVolume === undefined || !Number.isFinite(relativeVolume)) return 0;

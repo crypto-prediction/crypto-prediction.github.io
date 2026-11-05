@@ -138,7 +138,7 @@ The dashboard keeps two different things apart:
 
 ## Intelligence Lab
 
-The dashboard is unchanged. A small floating **Intelligence Lab** button opens a full-screen overlay with nine tabs, and only the open tab fetches anything. The globe stops drawing while the overlay is open.
+A separate page at **http://localhost:5173/lab.html**. The dashboard stays the landing page, and its code is unchanged (see "Protected UI"). Only the open tab fetches anything, and the globe doesn't run on this page, so the Lab adds no GPU load.
 
 | Tab | What it shows | Where the data comes from |
 |---|---|---|
@@ -169,6 +169,16 @@ The dashboard is unchanged. A small floating **Intelligence Lab** button opens a
 **Alerts** run on the server, so they keep working with the page closed for as long as the server is running. Anything that fires while you're away appears when you return. There are no phone, email or desktop notifications.
 
 **Backtest verdicts.** The strongest reading is "Held up in this test". Below 30 trades the only reading is "Insufficient trades". Nothing is ever labelled profitable.
+
+## Protected UI
+
+The dashboard is locked. Branch `signal-lab-ui-protected` holds the approved UI, and it must not be overwritten. New features go on the separate Lab page. To check the dashboard against the baseline after any change, with the app running:
+
+```bash
+python scripts/ui_regression.py
+```
+
+It serves the protected code next to the current code on the same data, then compares element structure, computed styles, positions, sizes and page height at desktop and mobile widths. It also checks that the protected files match byte for byte, then checks the globe, charts, ticker and navigation. It only reads. It needs Python Playwright and Pillow.
 
 ## Tests
 

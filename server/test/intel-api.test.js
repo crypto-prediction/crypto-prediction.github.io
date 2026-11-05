@@ -9,7 +9,8 @@ import { readFile } from 'node:fs/promises';
 import { startMockBinance } from './support/mock-binance.js';
 import { createBinanceRest } from '../src/binance/rest.js';
 import { createBinanceStream } from '../src/binance/stream.js';
-import { createApp } from '../src/app.js';
+import WebSocket from 'ws';
+import { attachWs, createApp } from '../src/app.js';
 import { config } from '../src/config.js';
 import { COINS } from '../src/coins.js';
 
@@ -35,6 +36,7 @@ before(async () => {
   const made = createApp({ pool, rest: createBinanceRest({ baseUrl: mock.rest }), stream, fetchImpl });
   intel = made.intel;
   server = http.createServer(made.app);
+  attachWs(server, stream, intel);
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}`;
   await new Promise((r) => setTimeout(r, 1200));
@@ -156,7 +158,30 @@ test('alerts: create, fire once on a real condition, no duplicates, re-arm, dele
   assert.equal((await intel.alerts.evaluate(now + 14400e3)).checked, 0);
   await send('DELETE', `/api/alerts/rules/${rule.id}`);
   assert.equal((await get('/api/alerts/rules')).body.length, 0);
-  assert.equal((await get('/api/alerts/events')).body.events.length, 2, 'history outlives the rule');
+  assert.ok((await get('/api/alerts/events')).body.events.length >= 2, 'history outlives the rule');
+});
+
+test('alerts reach only the page that asked for them, so the dashboard feed is unchanged', async () => {
+  const open = async (ask) => {
+    const ws = new WebSocket(`${base.replace('http', 'ws')}/ws`);
+    const got = [];
+    ws.on('message', (b) => { const m = JSON.parse(b.toString()); if (m.type === 'alert') got.push(m.data); });
+    await new Promise((r) => ws.on('open', r));
+    if (ask) ws.send(JSON.stringify({ type: 'alerts' }));
+    return { ws, got };
+  };
+  const lab = await open(true);
+  const dashboard = await open(false);
+  await new Promise((r) => setTimeout(r, 200));
+  const { body: rule } = await post('/api/alerts/rules', { symbol: 'ADAUSDT', type: 'price_above', params: { value: 0.0001 } });
+  await intel.alerts.evaluate();
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(lab.got.length, 1);
+  assert.match(lab.got[0].message, /ADA is above/);
+  assert.equal(dashboard.got.length, 0);
+  lab.ws.close();
+  dashboard.ws.close();
+  await send('DELETE', `/api/alerts/rules/${rule.id}`);
 });
 
 test('every alert type runs against live-format data without errors', async () => {

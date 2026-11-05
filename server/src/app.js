@@ -199,6 +199,7 @@ export function attachWs(server, stream, intel) {
       try {
         const m = JSON.parse(buf.toString());
         if (m.type === 'subscribe' && config.symbols.includes(m.symbol) && INTERVALS.includes(m.interval)) c.sub = { symbol: m.symbol, interval: m.interval };
+        if (m.type === 'alerts') c.wantsAlerts = true; // only the lab page asks; the dashboard's feed is unchanged
       } catch { /* ignore */ }
     });
   });
@@ -212,6 +213,6 @@ export function attachWs(server, stream, intel) {
     for (const c of wss.clients) if (c.sub.symbol === k.symbol && c.sub.interval === k.interval) send(c, { type: 'kline', data: k });
   });
   stream.on('status', (s) => { for (const c of wss.clients) send(c, { type: 'status', ...s }); });
-  intel?.alerts?.events.on('alert', (a) => { for (const c of wss.clients) send(c, { type: 'alert', data: a }); });
+  intel?.alerts?.events.on('alert', (a) => { for (const c of wss.clients) if (c.wantsAlerts) send(c, { type: 'alert', data: a }); });
   return wss;
 }

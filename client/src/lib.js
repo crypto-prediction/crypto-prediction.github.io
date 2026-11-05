@@ -20,15 +20,13 @@ export async function api(path, { method = 'GET', body } = {}) {
 export * from './format.js';
 
 /** Live feed from the Signal Lab server (which relays Binance WebSocket streams). */
-export function useLive(symbol, interval, onKline, onAlert) {
+export function useLive(symbol, interval, onKline) {
   const [tickers, setTickers] = useState({});
   const [status, setStatus] = useState({ status: 'connecting' });
   const [lastMsg, setLastMsg] = useState(0);
   const wsRef = useRef(null);
   const klineRef = useRef(onKline);
   klineRef.current = onKline;
-  const alertRef = useRef(onAlert);
-  alertRef.current = onAlert;
   const pending = useRef({});
   const subRef = useRef({ symbol, interval });
   subRef.current = { symbol, interval };
@@ -49,7 +47,6 @@ export function useLive(symbol, interval, onKline, onAlert) {
         }
         else if (m.type === 'status') setStatus(m);
         else if (m.type === 'kline') klineRef.current?.(m.data);
-        else if (m.type === 'alert') alertRef.current?.(m.data);
       };
       ws.onclose = () => {
         if (stopped) return;
