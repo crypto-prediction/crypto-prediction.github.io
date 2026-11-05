@@ -180,5 +180,99 @@ CREATE TABLE IF NOT EXISTS liquidation_events (
 );
 CREATE INDEX IF NOT EXISTS liquidation_events_symbol_time_idx ON liquidation_events(symbol, event_time);
 
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id            BIGSERIAL PRIMARY KEY,
+  source        TEXT NOT NULL,
+  source_id     TEXT NOT NULL,
+  title         TEXT NOT NULL,
+  category      TEXT NOT NULL,
+  country       TEXT,
+  currency      TEXT,
+  importance    TEXT NOT NULL,
+  event_date    DATE NOT NULL,
+  starts_at     TIMESTAMPTZ,
+  previous      TEXT,
+  forecast      TEXT,
+  actual        TEXT,
+  actual_source TEXT,
+  source_url    TEXT NOT NULL,
+  first_seen    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (source, source_id)
+);
+CREATE INDEX IF NOT EXISTS calendar_events_date_idx ON calendar_events(event_date);
+
+CREATE TABLE IF NOT EXISTS research_reports (
+  id           BIGSERIAL PRIMARY KEY,
+  kind         TEXT NOT NULL CHECK (kind IN ('daily','coin')),
+  symbol       TEXT,
+  report_date  DATE NOT NULL,
+  title        TEXT NOT NULL,
+  trigger      TEXT NOT NULL,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  content      JSONB NOT NULL,
+  ai_summary   TEXT,
+  ai_model     TEXT
+);
+CREATE INDEX IF NOT EXISTS research_reports_date_idx ON research_reports(report_date, kind);
+
+CREATE TABLE IF NOT EXISTS autopilot_settings (
+  id          INT PRIMARY KEY CHECK (id = 1),
+  enabled     BOOLEAN NOT NULL DEFAULT false,
+  paused      BOOLEAN NOT NULL DEFAULT false,
+  notify      BOOLEAN NOT NULL DEFAULT true,
+  symbols     TEXT[] NOT NULL,
+  intervals   TEXT[] NOT NULL,
+  conditions  JSONB NOT NULL,
+  quiet_start TEXT,
+  quiet_end   TEXT,
+  quiet_tz    TEXT NOT NULL DEFAULT 'UTC',
+  state       JSONB NOT NULL DEFAULT '{}',
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS autopilot_runs (
+  id               BIGSERIAL PRIMARY KEY,
+  trigger          TEXT NOT NULL,
+  started_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  finished_at      TIMESTAMPTZ,
+  status           TEXT NOT NULL DEFAULT 'running',
+  steps            JSONB NOT NULL DEFAULT '[]',
+  errors           JSONB NOT NULL DEFAULT '[]',
+  summary          TEXT,
+  pairs_checked    INT NOT NULL DEFAULT 0,
+  events_new       INT NOT NULL DEFAULT 0,
+  events_duplicate INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS autopilot_events (
+  id               BIGSERIAL PRIMARY KEY,
+  dedupe_key       TEXT NOT NULL UNIQUE,
+  run_id           BIGINT,
+  symbol           TEXT NOT NULL,
+  interval         TEXT NOT NULL,
+  condition        TEXT NOT NULL,
+  side             TEXT,
+  message          TEXT NOT NULL,
+  evidence         JSONB NOT NULL DEFAULT '{}',
+  context          JSONB NOT NULL DEFAULT '{}',
+  explanation      TEXT,
+  explanation_mode TEXT,
+  as_of            TIMESTAMPTZ NOT NULL,
+  notified         BOOLEAN NOT NULL DEFAULT false,
+  suppressed_quiet BOOLEAN NOT NULL DEFAULT false,
+  read             BOOLEAN NOT NULL DEFAULT false,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS autopilot_events_created_idx ON autopilot_events(created_at);
+
+CREATE TABLE IF NOT EXISTS autopilot_audit (
+  id     BIGSERIAL PRIMARY KEY,
+  at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  actor  TEXT NOT NULL,
+  action TEXT NOT NULL,
+  detail JSONB NOT NULL DEFAULT '{}'
+);
+
 INSERT INTO paper_accounts (id, name) VALUES (1, 'Default') ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('paper_accounts','id'), GREATEST(1, (SELECT MAX(id) FROM paper_accounts)));

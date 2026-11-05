@@ -11,6 +11,7 @@ import { createNews, DIGEST_SYSTEM, headlinesForDigest } from './news.js';
 import { createLab, MAX_COMBINATIONS, MIN_TRADES } from './lab.js';
 import { attachResearch } from './routes-research.js';
 import { attachMarkets } from './routes-markets.js';
+import { attachAutomation } from './routes-automation.js';
 
 const TRACK_EVERY_MS = 5 * 60e3;
 const ALERT_EVERY_MS = 30e3;
@@ -159,6 +160,7 @@ export function attachIntel(app, ctx) {
 
   attachResearch(app, ctx);
   const marketTools = attachMarkets(app, ctx);
+  const automation = attachAutomation(app, ctx, { tracker, news, forecastFor, orderBook: marketTools.orderBook, futures: marketTools.futures, exchanges: marketTools.exchanges, liquidations: marketTools.liquidations });
 
   /** Background work, started only by the real server. Returns a stop function. */
   function startJobs() {
@@ -169,8 +171,9 @@ export function attachIntel(app, ctx) {
     const a = setInterval(track, TRACK_EVERY_MS);
     const b = setInterval(check, ALERT_EVERY_MS);
     const stopMarkets = marketTools.startJobs();
-    return () => { clearInterval(a); clearInterval(b); stopMarkets(); };
+    const stopAutomation = automation.startJobs();
+    return () => { clearInterval(a); clearInterval(b); stopMarkets(); stopAutomation(); };
   }
 
-  return { alerts, tracker, forecastFor, startJobs, books: marketTools.books, liquidationFeed: marketTools.liquidationFeed };
+  return { alerts, tracker, forecastFor, startJobs, books: marketTools.books, liquidationFeed: marketTools.liquidationFeed, calendar: automation.calendar, reports: automation.reports, autopilot: automation.autopilot };
 }

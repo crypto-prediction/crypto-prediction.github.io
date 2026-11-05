@@ -14,6 +14,22 @@ export async function fetchJson(fetchImpl, url, { timeoutMs = 10000 } = {}) {
   }
 }
 
+/** The same for pages and RSS feeds. */
+export async function fetchText(fetchImpl, url, { timeoutMs = 10000 } = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(url, { signal: ctrl.signal, headers: { 'user-agent': 'Mozilla/5.0 (compatible; SignalLab)' } });
+    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { httpStatus: res.status });
+    return await res.text();
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error(`Timed out after ${timeoutMs / 1000}s`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const median = (values) => {
   const a = values.filter((v) => Number.isFinite(v)).sort((x, y) => x - y);
   if (!a.length) return null;

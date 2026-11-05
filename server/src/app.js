@@ -230,5 +230,6 @@ export function attachWs(server, stream, intel) {
   });
   stream.on('status', (s) => { for (const c of wss.clients) send(c, { type: 'status', ...s }); });
   intel?.alerts?.events.on('alert', (a) => { for (const c of wss.clients) if (c.wantsAlerts) send(c, { type: 'alert', data: a }); });
+  intel?.autopilot?.events.on('event', (a) => { for (const c of wss.clients) if (c.wantsAlerts) send(c, { type: 'autopilot', data: a }); });
   return wss;
 }

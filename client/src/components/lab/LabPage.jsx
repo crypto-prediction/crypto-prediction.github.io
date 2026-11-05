@@ -19,6 +19,8 @@ const GROUPS = [
     ['intel', 'Analyst', lazy(() => import('./Analyst.jsx'))],
     ['tracker', 'Model tracker', lazy(() => import('./Tracker.jsx'))],
     ['news', 'News', lazy(() => import('./News.jsx'))],
+    ['calendar', 'Calendar', lazy(() => import('./Calendar.jsx'))],
+    ['reports', 'Reports', lazy(() => import('./Reports.jsx'))],
   ]],
   ['Strategy', [
     ['builder', 'Strategy builder', lazy(() => import('./StrategyBuilder.jsx'))],
@@ -32,6 +34,7 @@ const GROUPS = [
   ]],
   ['Automation', [
     ['alerts', 'Alerts', lazy(() => import('./Alerts.jsx'))],
+    ['autopilot', 'Autopilot', lazy(() => import('./Autopilot.jsx'))],
   ]],
 ];
 const TABS = GROUPS.flatMap(([group, tabs]) => tabs.map(([key, label, Component]) => ({ group, key, label, Component })));
@@ -54,6 +57,7 @@ function useLabFeed(onAlert) {
         const m = JSON.parse(e.data);
         if (m.type === 'ticker') pending.current[m.data.symbol] = { ...m.data, receivedAt: Date.now() };
         else if (m.type === 'alert') alertRef.current?.(m.data);
+        else if (m.type === 'autopilot') alertRef.current?.({ ...m.data, fromAutopilot: true });
       };
       ws.onclose = () => { if (!stopped) timer = setTimeout(connect, Math.min(15000, 1000 * 2 ** retry++)); };
     };
@@ -98,9 +102,10 @@ export default function LabPage() {
   }, []);
 
   const onAlert = useCallback((a) => {
+    setToast(a);
+    if (a.fromAutopilot) return;
     setLastAlert(a);
     setUnread((n) => n + 1);
-    setToast(a);
   }, []);
   const tickers = useLabFeed(onAlert);
   const overview = useOverview(Boolean(meta), OVERVIEW_INTERVAL);
@@ -177,7 +182,7 @@ export default function LabPage() {
       </Suspense>
       {toast && (
         <div role="status" data-alert-toast className="panel fixed bottom-4 right-4 z-50 max-w-xs border-amber-neon/60 text-xs text-slate-200">
-          <div className="label text-amber-neon">Alert · {baseOf(toast.symbol)}</div>
+          <div className="label text-amber-neon">{toast.fromAutopilot ? 'Autopilot' : 'Alert'} · {baseOf(toast.symbol)}</div>
           {toast.message}
         </div>
       )}
