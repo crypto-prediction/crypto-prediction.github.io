@@ -15,6 +15,10 @@ export const config = {
   // market-data-only mirror; set BINANCE_REST_URL to it if api.binance.com is blocked in your region.
   binanceRest: process.env.BINANCE_REST_URL || 'https://api.binance.com',
   binanceWs: process.env.BINANCE_WS_URL || 'wss://stream.binance.com:9443',
+  // Derivatives data only, kept apart from the spot feed. Binance moved futures streams to these routed paths in 2026;
+  // the old base URL still connects but sends nothing.
+  binanceFuturesRest: process.env.BINANCE_FUTURES_REST_URL || 'https://fapi.binance.com',
+  binanceFuturesWs: process.env.BINANCE_FUTURES_WS_URL || 'wss://fstream.binance.com/market',
   symbols: resolveSymbols(process.env.SYMBOLS), // defined in coins.js
   // A live price older than this is treated as stale: paper trades are refused.
   staleAfterMs: num(process.env.STALE_AFTER_MS, 15000),

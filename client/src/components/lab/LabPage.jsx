@@ -9,6 +9,10 @@ const GROUPS = [
   ['Markets', [
     ['heatmap', 'Heatmap', lazy(() => import('./Heatmap.jsx'))],
     ['activity', 'Activity', lazy(() => import('./Activity.jsx'))],
+    ['orderbook', 'Order book', lazy(() => import('./OrderBook.jsx'))],
+    ['futures', 'Futures', lazy(() => import('./Futures.jsx'))],
+    ['liquidations', 'Liquidations', lazy(() => import('./Liquidations.jsx'))],
+    ['exchanges', 'Exchanges', lazy(() => import('./Exchanges.jsx'))],
   ]],
   ['Research', [
     ['forecast', 'Forecasts', lazy(() => import('./Forecast.jsx'))],
@@ -83,6 +87,15 @@ export default function LabPage() {
     setTabState(key);
     history.replaceState(null, '', `#${key}`);
   };
+
+  useEffect(() => {
+    const onHash = () => {
+      const wanted = location.hash.slice(1);
+      if (TABS.some((t) => t.key === wanted)) setTabState(wanted);
+    };
+    addEventListener('hashchange', onHash);
+    return () => removeEventListener('hashchange', onHash);
+  }, []);
 
   const onAlert = useCallback((a) => {
     setLastAlert(a);

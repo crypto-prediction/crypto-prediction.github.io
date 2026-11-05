@@ -155,5 +155,30 @@ CREATE TABLE IF NOT EXISTS journal_annotations (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Order Book history and Liquidation events.
+CREATE TABLE IF NOT EXISTS book_samples (
+  id         BIGSERIAL PRIMARY KEY,
+  symbol     TEXT NOT NULL,
+  ts         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  mid        DOUBLE PRECISION NOT NULL,
+  spread_bps DOUBLE PRECISION NOT NULL,
+  bid_usd    DOUBLE PRECISION NOT NULL,
+  ask_usd    DOUBLE PRECISION NOT NULL,
+  imbalance  DOUBLE PRECISION NOT NULL
+);
+CREATE INDEX IF NOT EXISTS book_samples_symbol_ts_idx ON book_samples(symbol, ts);
+
+CREATE TABLE IF NOT EXISTS liquidation_events (
+  id         BIGSERIAL PRIMARY KEY,
+  symbol     TEXT NOT NULL,
+  side       TEXT NOT NULL CHECK (side IN ('long','short')),
+  price      DOUBLE PRECISION NOT NULL,
+  qty        DOUBLE PRECISION NOT NULL,
+  usd        DOUBLE PRECISION NOT NULL,
+  event_time TIMESTAMPTZ NOT NULL,
+  UNIQUE (symbol, side, price, qty, event_time)
+);
+CREATE INDEX IF NOT EXISTS liquidation_events_symbol_time_idx ON liquidation_events(symbol, event_time);
+
 INSERT INTO paper_accounts (id, name) VALUES (1, 'Default') ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('paper_accounts','id'), GREATEST(1, (SELECT MAX(id) FROM paper_accounts)));

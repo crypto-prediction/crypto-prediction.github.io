@@ -25,7 +25,7 @@ export function startMockBinance({ port = 0, fail = {} } = {}) {
     const send = (code, body, headers = {}) => { res.writeHead(code, { 'content-type': 'application/json', 'x-mbx-used-weight-1m': '7', ...headers }); res.end(JSON.stringify(body)); };
     if (fail.status) return send(fail.status, { code: -1, msg: 'mock failure' }, fail.headers);
     const now = Date.now();
-    if (u.pathname === '/api/v3/klines') {
+    if (u.pathname === '/api/v3/klines' || u.pathname === '/fapi/v1/klines') {
       const s = u.searchParams.get('symbol'), iv = u.searchParams.get('interval'), ms = MS[iv];
       const limit = Number(u.searchParams.get('limit') || 500);
       if (u.searchParams.get('startTime')) {
@@ -42,12 +42,48 @@ export function startMockBinance({ port = 0, fail = {} } = {}) {
       for (let i = limit - 1; i >= 0; i--) rows.push(kline(s, iv, lastOpen - i * ms, now));
       return send(200, rows);
     }
-    if (u.pathname === '/api/v3/ticker/24hr') {
+    if (u.pathname === '/api/v3/ticker/24hr' && u.searchParams.get('symbols')) {
       const syms = JSON.parse(u.searchParams.get('symbols'));
       return send(200, syms.map((s) => {
         const p = px(s, now, 60e3), o = px(s, now - 86400e3, 60e3);
         return { symbol: s, lastPrice: p.toFixed(dp(s)), priceChange: (p - o).toFixed(2), priceChangePercent: ((p / o - 1) * 100).toFixed(3), highPrice: (p * 1.02).toFixed(2), lowPrice: (p * 0.98).toFixed(2), volume: '1234.5', quoteVolume: (1234.5 * p).toFixed(2), closeTime: now };
       }));
+    }
+    if (u.pathname === '/fapi/v1/exchangeInfo') {
+      return send(200, { symbols: Object.keys(BASE).map((s) => ({ symbol: s, contractType: (fail.noPerp || []).includes(s) ? 'CURRENT_QUARTER' : 'PERPETUAL', status: 'TRADING' })) });
+    }
+    if (u.pathname === '/fapi/v1/premiumIndex') {
+      const s = u.searchParams.get('symbol'), p = px(s, now, 60e3);
+      return send(200, { symbol: s, markPrice: (p * 1.001).toFixed(dp(s)), indexPrice: p.toFixed(dp(s)), lastFundingRate: '0.00010000', nextFundingTime: now + 3600e3, time: now });
+    }
+    if (u.pathname === '/fapi/v1/ticker/24hr') {
+      const s = u.searchParams.get('symbol'), p = px(s, now, 60e3);
+      return send(200, { symbol: s, lastPrice: p.toFixed(dp(s)), priceChangePercent: '1.50', quoteVolume: '123456789.00' });
+    }
+    if (u.pathname === '/fapi/v1/fundingRate') {
+      const s = u.searchParams.get('symbol'), limit = Number(u.searchParams.get('limit') || 100), p = px(s, now, 60e3);
+      return send(200, Array.from({ length: limit }, (_, i) => ({ symbol: s, fundingTime: now - (limit - i) * 8 * 3600e3, fundingRate: (0.0001 + 0.00005 * Math.sin(i / 3)).toFixed(8), markPrice: p.toFixed(dp(s)) })));
+    }
+    if (u.pathname === '/futures/data/openInterestHist') {
+      const s = u.searchParams.get('symbol'), limit = Number(u.searchParams.get('limit') || 30), ms2 = MS[u.searchParams.get('period')] || 3600e3;
+      const end = Math.floor(now / ms2) * ms2;
+      return send(200, Array.from({ length: limit }, (_, i) => {
+        const v = 1e9 * (1 + i / limit / 5 + 0.03 * Math.sin(i / 2));
+        return { symbol: s, sumOpenInterest: String(v / BASE[s]), sumOpenInterestValue: String(v), timestamp: end - (limit - 1 - i) * ms2 };
+      }));
+    }
+    if (u.pathname === '/futures/data/globalLongShortAccountRatio') {
+      const s = u.searchParams.get('symbol'), limit = Number(u.searchParams.get('limit') || 30), ms2 = MS[u.searchParams.get('period')] || 3600e3;
+      const end = Math.floor(now / ms2) * ms2;
+      return send(200, Array.from({ length: limit }, (_, i) => ({ symbol: s, longShortRatio: '1.5000', longAccount: '0.6000', shortAccount: '0.4000', timestamp: end - (limit - 1 - i) * ms2 })));
+    }
+    if (u.pathname === '/futures/data/takerlongshortRatio') {
+      const limit = Number(u.searchParams.get('limit') || 30);
+      return send(200, Array.from({ length: limit }, (_, i) => ({ buySellRatio: '1.0500', buyVol: '10', sellVol: '9', timestamp: now - (limit - i) * 3600e3 })));
+    }
+    if (u.pathname === '/api/v3/ticker/24hr' && u.searchParams.get('symbol')) {
+      const s = u.searchParams.get('symbol'), p = px(s, now, 60e3);
+      return send(200, { symbol: s, lastPrice: p.toFixed(dp(s)), bidPrice: (p * 0.9999).toFixed(dp(s)), askPrice: (p * 1.0001).toFixed(dp(s)), quoteVolume: '5000000.00', priceChangePercent: '1.00' });
     }
     if (u.pathname === '/api/v3/depth') {
       const s = u.searchParams.get('symbol'), p = px(s, now, 60e3);

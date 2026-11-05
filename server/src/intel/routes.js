@@ -10,6 +10,7 @@ import { createActivity } from './activity.js';
 import { createNews, DIGEST_SYSTEM, headlinesForDigest } from './news.js';
 import { createLab, MAX_COMBINATIONS, MIN_TRADES } from './lab.js';
 import { attachResearch } from './routes-research.js';
+import { attachMarkets } from './routes-markets.js';
 
 const TRACK_EVERY_MS = 5 * 60e3;
 const ALERT_EVERY_MS = 30e3;
@@ -157,6 +158,7 @@ export function attachIntel(app, ctx) {
   app.post('/api/lab/walkforward', wrap(async (req, res) => res.json(await lab.walkForward({ ...req.body, interval: iv(req.body?.interval) }))));
 
   attachResearch(app, ctx);
+  const marketTools = attachMarkets(app, ctx);
 
   /** Background work, started only by the real server. Returns a stop function. */
   function startJobs() {
@@ -166,8 +168,9 @@ export function attachIntel(app, ctx) {
     track();
     const a = setInterval(track, TRACK_EVERY_MS);
     const b = setInterval(check, ALERT_EVERY_MS);
-    return () => { clearInterval(a); clearInterval(b); };
+    const stopMarkets = marketTools.startJobs();
+    return () => { clearInterval(a); clearInterval(b); stopMarkets(); };
   }
 
-  return { alerts, tracker, forecastFor, startJobs };
+  return { alerts, tracker, forecastFor, startJobs, books: marketTools.books, liquidationFeed: marketTools.liquidationFeed };
 }

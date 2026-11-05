@@ -14,7 +14,7 @@ import { attachIntel } from './intel/routes.js';
 
 const SOURCE = 'Binance spot public market data';
 
-export function createApp({ pool, rest, stream, markets = staticMarkets(), fetchImpl, aiClient }) {
+export function createApp({ pool, rest, stream, markets = staticMarkets(), fetchImpl, aiClient, futuresRest, bookFeed, liquidationFeed }) {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '100kb' }));
@@ -182,7 +182,7 @@ export function createApp({ pool, rest, stream, markets = staticMarkets(), fetch
   }));
   app.post('/api/paper/reset', wrap(async (_req, res) => { await paper.reset(); res.json(await paper.portfolio(lookup)); }));
 
-  const intel = attachIntel(app, { pool, rest, stream, markets, paper, lookup, cached, wrap, sym, iv, historyFor, overviewFor, tickersNow, fetchImpl, aiClient });
+  const intel = attachIntel(app, { pool, rest, stream, markets, paper, lookup, cached, wrap, sym, iv, historyFor, overviewFor, tickersNow, fetchImpl, aiClient, futuresRest, bookFeed, liquidationFeed });
 
   return { app, paper, lookup, intel };
 }
@@ -200,8 +200,24 @@ export function attachWs(server, stream, intel) {
         const m = JSON.parse(buf.toString());
         if (m.type === 'subscribe' && config.symbols.includes(m.symbol) && INTERVALS.includes(m.interval)) c.sub = { symbol: m.symbol, interval: m.interval };
         if (m.type === 'alerts') c.wantsAlerts = true; // only the lab page asks; the dashboard's feed is unchanged
+        if (m.type === 'book' && intel?.books) {
+          c.stopBook?.();
+          c.stopBook = null;
+          if (config.symbols.includes(m.symbol)) {
+            const wanted = m.symbol;
+            c.wantedBook = wanted;
+            intel.books.subscribe(wanted, (data) => send(c, { type: 'book', data })).then((stop) => {
+              // the page may have moved on, or closed, while this was connecting
+              if (c.wantedBook === wanted && c.readyState === 1) c.stopBook = stop;
+              else stop();
+            });
+          } else {
+            c.wantedBook = null;
+          }
+        }
       } catch { /* ignore */ }
     });
+    c.on('close', () => { c.wantedBook = null; c.stopBook?.(); c.stopBook = null; });
   });
   const lastTicker = {};
   stream.on('ticker', (t) => {
