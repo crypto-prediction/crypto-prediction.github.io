@@ -10,10 +10,11 @@ import { runBacktest, STRATEGIES } from './backtest.js';
 import { createPaper } from './paper.js';
 import { aiEnabled, explain } from './ai.js';
 import { BinanceError } from './binance/rest.js';
+import { attachIntel } from './intel/routes.js';
 
 const SOURCE = 'Binance spot public market data';
 
-export function createApp({ pool, rest, stream, markets = staticMarkets() }) {
+export function createApp({ pool, rest, stream, markets = staticMarkets(), fetchImpl, aiClient }) {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '100kb' }));
@@ -56,6 +57,25 @@ export function createApp({ pool, rest, stream, markets = staticMarkets() }) {
     return symbol;
   };
   const iv = (i) => (INTERVALS.includes(i) ? i : '1h');
+  const historyFor = (symbol, interval, bars = 1000) => cached(`h:${symbol}:${interval}:${bars}`, 30000, () => rest.history(symbol, interval, bars));
+  const overviewFor = (interval) => cached(`overview:${interval}`, 30000, () => Promise.all(markets.active().map(async (symbol) => {
+    try {
+      const candles = (await historyFor(symbol, interval)).filter((c) => c.closed !== false);
+      if (candles.length < 2) return { symbol, error: 'Not enough candles yet' };
+      const ind = computeAll(candles);
+      const i = candles.length - 1;
+      const s = signalAt(ind, candles, i);
+      return { symbol, ...marketSnapshot(candles, ind, i), signal: s?.signal ?? null, score: s?.score ?? null };
+    } catch (e) {
+      return { symbol, error: e.message };
+    }
+  })));
+  const tickersNow = async () => {
+    const active = markets.active();
+    const fromStream = active.map((s) => stream?.tickers[s]).filter((t) => t && stream.livePrice(t.symbol));
+    if (fromStream.length === active.length) return { tickers: fromStream, live: true };
+    return { tickers: await cached('tickers', 5000, () => rest.tickers24h(active)), live: false };
+  };
 
   app.get('/api/health', wrap(async (_req, res) => {
     let db = 'ok';
@@ -72,11 +92,8 @@ export function createApp({ pool, rest, stream, markets = staticMarkets() }) {
   }));
 
   app.get('/api/tickers', wrap(async (_req, res) => {
-    const active = markets.active();
-    const fromStream = active.map((s) => stream?.tickers[s]).filter((t) => t && stream.livePrice(t.symbol));
-    if (fromStream.length === active.length) return res.json({ source: `${SOURCE} (WebSocket)`, asOf: Date.now(), tickers: fromStream });
-    const tickers = await cached('tickers', 5000, () => rest.tickers24h(active));
-    res.json({ source: `${SOURCE} (REST)`, asOf: Date.now(), tickers });
+    const { tickers, live } = await tickersNow();
+    res.json({ source: `${SOURCE} (${live ? 'WebSocket' : 'REST'})`, asOf: Date.now(), tickers });
   }));
 
   app.get('/api/candles', wrap(async (req, res) => {
@@ -111,20 +128,7 @@ export function createApp({ pool, rest, stream, markets = staticMarkets() }) {
   // A coin that fails is reported on its own row and doesn't affect the others.
   app.get('/api/overview', wrap(async (req, res) => {
     const interval = iv(req.query.interval);
-    const coins = await cached(`overview:${interval}`, 30000, () => Promise.all(markets.active().map(async (symbol) => {
-      try {
-        const all = await cached(`h:${symbol}:${interval}:1000`, 30000, () => rest.history(symbol, interval, 1000));
-        const candles = all.filter((c) => c.closed !== false);
-        if (candles.length < 2) return { symbol, error: 'Not enough candles yet' };
-        const ind = computeAll(candles);
-        const i = candles.length - 1;
-        const s = signalAt(ind, candles, i);
-        return { symbol, ...marketSnapshot(candles, ind, i), signal: s?.signal ?? null, score: s?.score ?? null };
-      } catch (e) {
-        return { symbol, error: e.message };
-      }
-    })));
-    res.json({ source: SOURCE, interval, fetchedAt: Date.now(), coins });
+    res.json({ source: SOURCE, interval, fetchedAt: Date.now(), coins: await overviewFor(interval) });
   }));
 
   app.get('/api/analysis', wrap(async (req, res) => {
@@ -178,11 +182,13 @@ export function createApp({ pool, rest, stream, markets = staticMarkets() }) {
   }));
   app.post('/api/paper/reset', wrap(async (_req, res) => { await paper.reset(); res.json(await paper.portfolio(lookup)); }));
 
-  return { app, paper, lookup };
+  const intel = attachIntel(app, { pool, rest, stream, markets, paper, lookup, cached, wrap, sym, iv, historyFor, overviewFor, tickersNow, fetchImpl, aiClient });
+
+  return { app, paper, lookup, intel };
 }
 
 /** Relays Binance stream events to browser clients. Clients subscribe to one symbol+interval for klines. */
-export function attachWs(server, stream) {
+export function attachWs(server, stream, intel) {
   const wss = new WebSocketServer({ server, path: '/ws' });
   const send = (c, m) => { if (c.readyState === 1) c.send(JSON.stringify(m)); };
   wss.on('connection', (c) => {
@@ -206,5 +212,6 @@ export function attachWs(server, stream) {
     for (const c of wss.clients) if (c.sub.symbol === k.symbol && c.sub.interval === k.interval) send(c, { type: 'kline', data: k });
   });
   stream.on('status', (s) => { for (const c of wss.clients) send(c, { type: 'status', ...s }); });
+  intel?.alerts?.events.on('alert', (a) => { for (const c of wss.clients) send(c, { type: 'alert', data: a }); });
   return wss;
 }

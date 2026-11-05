@@ -73,6 +73,17 @@ PostgreSQL ◄───┘   indicators, signal,   └─ /ws     (live tickers 
 | GET | `/api/paper/portfolio` · `/trades` · `/equity` | Account state |
 | POST | `/api/paper/order` | `{symbol, side: "BUY"\|"SELL", amountUsd \| qty \| closeAll}` |
 | POST | `/api/paper/reset` | Back to $10,000 |
+| GET | `/api/intel/status` | Forecast model and AI status |
+| GET | `/api/forecast?horizon=24h&symbol=…` | Forecasts for `15m`, `1h`, `4h`, `24h` or `7d` |
+| GET | `/api/forecast/performance` | Scores of saved forecasts against real outcomes |
+| GET | `/api/intel/brief` | Market mood, momentum, unusual activity, risks, multi-timeframe trend |
+| POST | `/api/intel/chat` | `{question}`. Claude when available, otherwise labelled rule-based answers |
+| GET, POST, PATCH, DELETE | `/api/alerts/rules` | Alert rules |
+| GET, POST | `/api/alerts/events` · `/events/read` | Alert history, mark as read |
+| GET | `/api/portfolio/intel` | Read-only exposure, risk and correlation |
+| GET | `/api/activity?symbol=…` | Order book, unusual volume and sudden moves, kept apart from on-chain data |
+| GET | `/api/news?symbol=…` · POST `/api/news/digest` | Publisher news, labelled estimates, optional AI summary |
+| POST | `/api/lab/compare` · `/api/lab/walkforward` | Multi-run backtest comparison, walk-forward validation |
 
 ## How the numbers work
 
@@ -125,6 +136,40 @@ The dashboard keeps two different things apart:
 - **Unpriceable positions:** if a position can't be priced live, equity is shown as unknown instead of guessed.
 - **Separation from real money:** the `mode` column is constrained to `'paper'`, and no exchange keys exist anywhere in the app.
 
+## Intelligence Lab
+
+The dashboard is unchanged. A small floating **Intelligence Lab** button opens a full-screen overlay with nine tabs, and only the open tab fetches anything. The globe stops drawing while the overlay is open.
+
+| Tab | What it shows | Where the data comes from |
+|---|---|---|
+| Heatmap | Price, 24h change, volume, volatility and direction, with filters | Binance |
+| Forecasts | Direction, probabilities, range, support and resistance, volatility, risk and reasons for 5 horizons | Statistical model on Binance candles |
+| Analyst | Market mood, risks, multi-timeframe trend, chat | Binance, plus Claude for chat when available |
+| Model tracker | Accuracy, precision, recall, Brier score and calibration of saved forecasts | Real outcomes only |
+| Alerts | Rules, custom conditions, history | Checked on the server every 30 seconds |
+| Portfolio | Exposure, realised and unrealised P&L, risk, correlation | Paper account (read only) and Binance |
+| Activity | Order book, unusual volume, sudden moves, large unconfirmed BTC transfers | Binance; blockchain.info for on-chain data |
+| Backtest lab | Coins, strategies, timeframes and periods compared; walk-forward validation | Binance history |
+| News | Latest articles with coin filters | CoinDesk, Cointelegraph and Decrypt RSS |
+
+**External services**
+
+| Service | Key needed | Used for |
+|---|---|---|
+| Binance public data | No | All market data |
+| blockchain.info | No | Sample of large unconfirmed Bitcoin transfers |
+| CoinDesk, Cointelegraph, Decrypt RSS | No | News |
+| Anthropic API | `ANTHROPIC_API_KEY` with credits | Optional: Explain, chat answers, news summaries |
+| On-chain data provider | Not connected | Exchange inflows and outflows and other chains need a paid provider, so they are shown as not connected |
+
+**How the forecast works.** Each coin and horizon gets an L2 logistic regression on 8 technical features, using closed candles only. History is split in time order into training, tuning and test sets. The tuning set decides how much of the model's lean to keep, so a lean with no evidence behind it collapses to the coin's base rate. Confidence stays Low unless the model beats that base rate on at least 20 independent test periods. Expect most readings to sit near 50%. This is a statistics model, and the UI labels it as not AI.
+
+**How the tracker works.** While the server runs, it saves one forecast per coin, horizon and closed candle, then scores each against the real close at its target time. Nothing is estimated: with no outcomes, every metric is empty. Longer horizons take up to 7 days to score, and neighbouring forecasts overlap, so they aren't fully independent.
+
+**Alerts** run on the server, so they keep working with the page closed for as long as the server is running. Anything that fires while you're away appears when you return. There are no phone, email or desktop notifications.
+
+**Backtest verdicts.** The strongest reading is "Held up in this test". Below 30 trades the only reading is "Insufficient trades". Nothing is ever labelled profitable.
+
 ## Tests
 
 ```bash
@@ -136,14 +181,15 @@ npm test                                                      # both
 
 Use a separate, disposable database for `TEST_DATABASE_URL`, because the tests drop and recreate the tables. If port 5432 is taken, use the port your database container is published on.
 
-- **Server (80 tests):** indicators against reference calculations and for no look-ahead; the backtester's arithmetic; the Binance client's retries, rate limits and reconnects; paper accounting on PostgreSQL; and `test/pairs.test.js`, which runs candles, indicators, signal, backtest and paper trading for each of the 10 pairs and checks that a delisted pair is refused without affecting the others. The API tests run the real app against a local fake Binance (`test/support/mock-binance.js`), whose formula prices exist only for tests.
-- **Client (9 tests):** price formatting from BTC down to sub-cent coins, the coin registry, and the chart and globe maths. There are no component tests in the repository; browser behaviour was checked separately with a scripted browser.
+- **Server (130 tests):** indicators against reference calculations and for no look-ahead; the backtester's arithmetic; the Binance client's retries, rate limits and reconnects; paper accounting on PostgreSQL; `test/pairs.test.js`, which runs candles, indicators, signal, backtest and paper trading for each of the 10 pairs and checks that a delisted pair is refused without affecting the others; and `test/intel.test.js` and `test/intel-api.test.js`, which cover forecasts, tracker scoring, alerts, portfolio analysis, activity, news, the backtest lab and AI status. The API tests run the real app against a local fake Binance (`test/support/mock-binance.js`), whose formula prices exist only for tests.
+- **Client (10 tests):** price formatting from BTC down to sub-cent coins, the coin registry, heatmap filters, and the chart and globe maths. There are no component tests in the repository; browser behaviour was checked separately with a scripted browser.
 
 ## Limits worth knowing
 - Signals and backtests describe the past. Crypto regimes change; a strategy that worked on 1,000 candles can fail on the next 100.
 - Slippage is a fixed estimate. Real slippage grows with order size and thin markets.
 - Backtests are long-only, with one position at a time, and do not include funding, taxes or exchange outages.
 - Times on charts are shown in UTC.
+- Forecasts are statistical estimates from past candles. Crypto direction is hard to predict, and most readings carry little or no measured edge.
 - The globe summarises price data. It does not show blockchain transactions or money moving between coins; its connecting arcs are return correlations.
 - A paper position in a coin that gets delisted can't be priced or closed, so account equity shows as unknown until the account is reset.
 

@@ -197,7 +197,7 @@ function project([x, y, z], t, focal, aspect) {
 
 const fmtTime = (ms) => `${new Date(ms).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 
-export const FilamentTorus = memo(function FilamentTorus({ series, interval, error, tickers, overview, selected, onSelect }) {
+export const FilamentTorus = memo(function FilamentTorus({ series, interval, error, tickers, overview, selected, onSelect, suspended = false }) {
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
   const labelEls = useRef({});
@@ -212,6 +212,10 @@ export const FilamentTorus = memo(function FilamentTorus({ series, interval, err
   st.selected = st.symbols.indexOf(selected);
   st.activity = overview;
   st.paused = Boolean(hoverCoin);
+  st.suspended = suspended;
+
+  // no GPU work while the Intelligence Lab covers the page
+  useEffect(() => { if (!suspended) st.play?.(); }, [suspended, st]);
 
   // Rebuild only when a new candle has opened. With no data, nothing is drawn.
   useEffect(() => {
@@ -337,7 +341,7 @@ export const FilamentTorus = memo(function FilamentTorus({ series, interval, err
 
     const frame = () => {
       raf = 0;
-      if (!visible || !draw) return;
+      if (!visible || !draw || st.suspended) return;
       const now = performance.now();
       const dt = Math.min(0.1, (now - lastFrame) / 1000);
       lastFrame = now;
@@ -346,7 +350,8 @@ export const FilamentTorus = memo(function FilamentTorus({ series, interval, err
       placeLabels(simT);
       raf = requestAnimationFrame(frame);
     };
-    const play = () => { if (!raf && visible && draw) { lastFrame = performance.now(); raf = requestAnimationFrame(frame); } };
+    const play = () => { if (!raf && visible && draw && !st.suspended) { lastFrame = performance.now(); raf = requestAnimationFrame(frame); } };
+    st.play = play;
 
     const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; play(); });
     io.observe(canvas);

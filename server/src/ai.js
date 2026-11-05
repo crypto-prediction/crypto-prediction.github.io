@@ -2,7 +2,45 @@
 // The signal itself is always computed deterministically in analysis.js; the model only explains it.
 import { config } from './config.js';
 
+// Load the SDK during startup when AI is on. Loading it on the first request made `node --watch`
+// (npm run server) restart the server mid-request, so that request came back empty.
+const preloaded = config.anthropicKey ? await import('@anthropic-ai/sdk').catch(() => null) : null;
+const loadSdk = async () => (preloaded ?? await import('@anthropic-ai/sdk')).default;
+
 const cache = new Map();
+let lastCall = { state: 'untested', detail: null, at: null };
+
+/** Honest AI availability: configured or not, and what happened on the last real call. It never probes the API. */
+export function aiStatus() {
+  if (!aiEnabled()) return { configured: false, state: 'not-configured', detail: 'No ANTHROPIC_API_KEY is set.', model: null, at: null };
+  return { configured: true, model: config.anthropicModel, ...lastCall };
+}
+const note = (state, detail = null) => { lastCall = { state, detail, at: Date.now() }; };
+
+/** One request to Claude. Throws a readable error, and records the result for aiStatus(). */
+export async function aiComplete({ system, user, maxTokens = 16000, client: injected }) {
+  if (!aiEnabled() && !injected) throw Object.assign(new Error('AI is off: no ANTHROPIC_API_KEY is set.'), { status: 501, code: 'ai_off' });
+  let msg;
+  try {
+    const client = injected || new (await loadSdk())({ apiKey: config.anthropicKey });
+    msg = await client.messages.create({ model: config.anthropicModel, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] });
+  } catch (e) {
+    const err = toAiError(e);
+    note('error', err.message);
+    throw err;
+  }
+  if (msg.stop_reason === 'refusal') {
+    note('error', 'The model declined this request.');
+    throw Object.assign(new Error('The model declined this request.'), { status: 502, code: 'ai_refused' });
+  }
+  const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+  if (!text) {
+    note('error', 'The model returned no text.');
+    throw Object.assign(new Error('The model returned no text.'), { status: 502, code: 'ai_empty' });
+  }
+  note('ok');
+  return { text, model: config.anthropicModel };
+}
 
 export function aiEnabled() {
   return Boolean(config.anthropicKey);
@@ -25,7 +63,7 @@ export async function explain(symbol, interval, analysis) {
   if (!aiEnabled()) return null;
   const key = `${symbol}:${interval}:${analysis.asOfCandleClose}`;
   if (cache.has(key)) return cache.get(key);
-  const { default: Anthropic } = await import('@anthropic-ai/sdk'); // loaded only when AI is turned on
+  const Anthropic = await loadSdk();
   const client = new Anthropic({ apiKey: config.anthropicKey });
   const facts = {
     symbol, interval, price: analysis.price, signal: analysis.signal, compositeScore: analysis.score.toFixed(3),
@@ -37,12 +75,15 @@ export async function explain(symbol, interval, analysis) {
   try {
     msg = await client.messages.create({
       model: config.anthropicModel,
-      max_tokens: 400,
+      max_tokens: 16000,
       system: 'You explain crypto technical-analysis readings to a retail user. Use only the numbers provided. Never predict prices, never promise returns, never tell the user to trade. Say plainly when the historical hit rate is close to the baseline or the sample is small. 4 to 6 short sentences, no headings, no bullet points.',
       messages: [{ role: 'user', content: `Explain this research reading:\n${JSON.stringify(facts)}` }],
     });
+    note('ok');
   } catch (e) {
-    throw toAiError(e);
+    const err = toAiError(e);
+    note('error', err.message);
+    throw err;
   }
   const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
   const out = { text, model: config.anthropicModel, generatedAt: Date.now() };

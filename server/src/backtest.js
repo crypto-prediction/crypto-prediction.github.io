@@ -214,3 +214,11 @@ export function runBacktest(candlesAll, { type, params, interval, feeRate = 0.00
     trades: full.trades.slice(-200),
   };
 }
+
+/** Metrics for one stretch of candles [from..to]. The rule sees only the candles passed in, so pass none beyond `to`. */
+export function runWindow(candles, { type, params = {}, interval = '1h', from, to, feeRate = 0.001, slippageBps = 5, startingCash = 10000 }) {
+  const p = validateStrategy(type, params);
+  const rule = makeRule(type, p, candles);
+  const sim = simulate(candles, rule, { from, to, feeRate, slippageBps, startingCash });
+  return metrics(sim, candles, from, to, startingCash, INTERVAL_MS[interval] || 3600e3);
+}

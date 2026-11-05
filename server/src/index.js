@@ -27,9 +27,10 @@ stream = createBinanceStream({ symbols: markets.active() });
 stream.on('status', (s) => console.log(`[binance-ws] ${s.status}${s.lastError ? ` — ${s.lastError}` : ''}`));
 stream.start();
 
-const { app, paper, lookup } = createApp({ pool, rest, stream, markets });
+const { app, paper, lookup, intel } = createApp({ pool, rest, stream, markets });
 const server = http.createServer(app);
-attachWs(server, stream);
+attachWs(server, stream, intel);
+const stopIntelJobs = intel.startJobs();
 
 paper.snapshot(lookup).catch(() => {}); // registers the live-price lookup
 // equity snapshot every minute, only when every position has a live price
@@ -37,6 +38,6 @@ setInterval(() => paper.snapshot(lookup).catch((e) => console.error('snapshot', 
 
 server.listen(config.port, () => console.log(`Signal Lab API on http://localhost:${config.port}  (Binance REST ${config.binanceRest})`));
 
-const shutdown = () => { markets.stop(); stream.stop(); server.close(); pool.end().finally(() => process.exit(0)); };
+const shutdown = () => { stopIntelJobs(); markets.stop(); stream.stop(); server.close(); pool.end().finally(() => process.exit(0)); };
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

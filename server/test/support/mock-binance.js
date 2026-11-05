@@ -28,6 +28,10 @@ export function startMockBinance({ port = 0, fail = {} } = {}) {
     if (u.pathname === '/api/v3/klines') {
       const s = u.searchParams.get('symbol'), iv = u.searchParams.get('interval'), ms = MS[iv];
       const limit = Number(u.searchParams.get('limit') || 500);
+      if (u.searchParams.get('startTime')) {
+        const st = Number(u.searchParams.get('startTime'));
+        return send(200, st > now ? [] : [kline(s, iv, st, now)]);
+      }
       const end = u.searchParams.get('endTime') ? Number(u.searchParams.get('endTime')) : now;
       const lastOpen = Math.floor(end / ms) * ms;
       const rows = [];
@@ -40,6 +44,11 @@ export function startMockBinance({ port = 0, fail = {} } = {}) {
         const p = px(s, now, 60e3), o = px(s, now - 86400e3, 60e3);
         return { symbol: s, lastPrice: p.toFixed(dp(s)), priceChange: (p - o).toFixed(2), priceChangePercent: ((p / o - 1) * 100).toFixed(3), highPrice: (p * 1.02).toFixed(2), lowPrice: (p * 0.98).toFixed(2), volume: '1234.5', quoteVolume: (1234.5 * p).toFixed(2), closeTime: now };
       }));
+    }
+    if (u.pathname === '/api/v3/depth') {
+      const s = u.searchParams.get('symbol'), p = px(s, now, 60e3);
+      const side = (sign) => Array.from({ length: 20 }, (_, i) => [(p * (1 + sign * (i + 1) * 0.0004)).toFixed(dp(s)), String(10 + i)]);
+      return send(200, { lastUpdateId: 1, bids: side(-1), asks: side(1) });
     }
     if (u.pathname === '/api/v3/exchangeInfo') {
       const listed = Object.keys(BASE).filter((s) => !(fail.delisted || []).includes(s));
