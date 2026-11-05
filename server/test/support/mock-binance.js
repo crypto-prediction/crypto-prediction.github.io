@@ -30,7 +30,11 @@ export function startMockBinance({ port = 0, fail = {} } = {}) {
       const limit = Number(u.searchParams.get('limit') || 500);
       if (u.searchParams.get('startTime')) {
         const st = Number(u.searchParams.get('startTime'));
-        return send(200, st > now ? [] : [kline(s, iv, st, now)]);
+        const first = Math.ceil(st / ms) * ms;
+        const stop = u.searchParams.get('endTime') ? Number(u.searchParams.get('endTime')) : now;
+        const rows = [];
+        for (let open = first; open <= Math.min(now, stop) && rows.length < limit; open += ms) rows.push(kline(s, iv, open, now));
+        return send(200, rows);
       }
       const end = u.searchParams.get('endTime') ? Number(u.searchParams.get('endTime')) : now;
       const lastOpen = Math.floor(end / ms) * ms;

@@ -17,10 +17,14 @@ const GROUPS = [
     ['news', 'News', lazy(() => import('./News.jsx'))],
   ]],
   ['Strategy', [
+    ['builder', 'Strategy builder', lazy(() => import('./StrategyBuilder.jsx'))],
     ['backtest', 'Backtest lab', lazy(() => import('./BacktestLab.jsx'))],
+    ['replay', 'Market replay', lazy(() => import('./Replay.jsx'))],
   ]],
   ['Portfolio', [
     ['portfolio', 'Portfolio', lazy(() => import('./PortfolioIntel.jsx'))],
+    ['risk', 'Risk simulator', lazy(() => import('./RiskSimulator.jsx'))],
+    ['journal', 'Trading journal', lazy(() => import('./Journal.jsx'))],
   ]],
   ['Automation', [
     ['alerts', 'Alerts', lazy(() => import('./Alerts.jsx'))],

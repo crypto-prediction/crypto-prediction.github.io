@@ -109,5 +109,51 @@ CREATE TABLE IF NOT EXISTS alert_events (
   UNIQUE (rule_id, dedupe_key)
 );
 
+-- Strategy Builder, Market Replay and Trading Journal. New tables only; paper tables are never altered.
+CREATE TABLE IF NOT EXISTS strategies (
+  id          BIGSERIAL PRIMARY KEY,
+  name        TEXT NOT NULL,
+  config      JSONB NOT NULL,
+  source_text TEXT,
+  source_mode TEXT NOT NULL DEFAULT 'manual',
+  status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','approved')),
+  approved_at TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS replay_sessions (
+  id            BIGSERIAL PRIMARY KEY,
+  symbol        TEXT NOT NULL,
+  interval      TEXT NOT NULL,
+  start_time    TIMESTAMPTZ NOT NULL,
+  starting_cash NUMERIC(20,8) NOT NULL,
+  cursor_index  INT NOT NULL DEFAULT 0,
+  strategy_id   BIGINT REFERENCES strategies(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS replay_trades (
+  id           BIGSERIAL PRIMARY KEY,
+  session_id   BIGINT NOT NULL REFERENCES replay_sessions(id) ON DELETE CASCADE,
+  candle_index INT NOT NULL,
+  candle_time  TIMESTAMPTZ NOT NULL,
+  side         TEXT NOT NULL CHECK (side IN ('BUY','SELL')),
+  qty          NUMERIC(30,12) NOT NULL,
+  price        NUMERIC(24,10) NOT NULL,
+  fee          NUMERIC(20,8) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS replay_trades_session_idx ON replay_trades(session_id, id);
+
+CREATE TABLE IF NOT EXISTS journal_annotations (
+  trade_id     BIGINT PRIMARY KEY,
+  entry_reason TEXT,
+  exit_reason  TEXT,
+  strategy_id  BIGINT REFERENCES strategies(id) ON DELETE SET NULL,
+  note         TEXT,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 INSERT INTO paper_accounts (id, name) VALUES (1, 'Default') ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('paper_accounts','id'), GREATEST(1, (SELECT MAX(id) FROM paper_accounts)));

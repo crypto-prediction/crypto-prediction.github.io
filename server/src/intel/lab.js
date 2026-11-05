@@ -10,7 +10,7 @@ const bad = (m) => Object.assign(new Error(m), { status: 400 });
 
 /** A plain reading of the evidence. The best possible result is "held up in this test", never "profitable". */
 export function assess(metrics, outOfSample) {
-  if (metrics.trades < MIN_TRADES) return { verdict: 'Insufficient trades', detail: `${metrics.trades} trades is below the ${MIN_TRADES} needed to judge a strategy.`, ok: false };
+  if (metrics.trades < MIN_TRADES) return { verdict: 'Insufficient trades', detail: `${metrics.trades} ${metrics.trades === 1 ? 'trade is' : 'trades are'} below the ${MIN_TRADES} needed to judge a strategy.`, ok: false };
   if (outOfSample && outOfSample.trades < 10) return { verdict: 'Insufficient out-of-sample trades', detail: `Only ${outOfSample.trades} trades in the held-out period.`, ok: false };
   if (outOfSample && outOfSample.totalReturnPct <= 0) return { verdict: 'Failed out of sample', detail: 'It lost money on data held out from the test.', ok: false };
   if (metrics.totalReturnPct <= 0) return { verdict: 'Lost money', detail: 'It lost money over the whole period, even if it beat holding the coin.', ok: false };

@@ -4,7 +4,7 @@
 import { computeAll, ema } from './indicators.js';
 import { signalAt, MIN_BARS } from './analysis.js';
 
-const INTERVAL_MS = { '1m': 60e3, '5m': 300e3, '15m': 900e3, '1h': 3600e3, '4h': 14400e3, '1d': 86400e3 };
+export const INTERVAL_MS = { '1m': 60e3, '5m': 300e3, '15m': 900e3, '1h': 3600e3, '4h': 14400e3, '1d': 86400e3 };
 
 export const STRATEGIES = {
   ema_cross: {
@@ -130,7 +130,7 @@ function simulate(candles, rule, { from, to, feeRate, slippageBps, startingCash 
   return { finalEquity: cash, trades, equity, maxDD, fees, slippagePaid, barsInMarket, openAtEnd };
 }
 
-function metrics(sim, candles, from, to, startingCash, intervalMs) {
+export function backtestMetrics(sim, candles, from, to, startingCash, intervalMs) {
   const { trades, equity } = sim;
   const wins = trades.filter((t) => t.pnl > 0);
   const grossWin = wins.reduce((s, t) => s + t.pnl, 0);
@@ -161,7 +161,7 @@ function metrics(sim, candles, from, to, startingCash, intervalMs) {
   };
 }
 
-function downsample(arr, max = 400) {
+export function downsample(arr, max = 400) {
   if (arr.length <= max) return arr;
   const step = arr.length / max;
   const out = [];
@@ -187,9 +187,9 @@ export function runBacktest(candlesAll, { type, params, interval, feeRate = 0.00
   const full = simulate(candles, rule, { from, to, ...opts });
   const isSim = simulate(candles, rule, { from, to: split, ...opts });
   const oosSim = simulate(candles, rule, { from: split + 1, to, ...opts });
-  const fullM = metrics(full, candles, from, to, startingCash, intervalMs);
-  const isM = metrics(isSim, candles, from, split, startingCash, intervalMs);
-  const oosM = metrics(oosSim, candles, split + 1, to, startingCash, intervalMs);
+  const fullM = backtestMetrics(full, candles, from, to, startingCash, intervalMs);
+  const isM = backtestMetrics(isSim, candles, from, split, startingCash, intervalMs);
+  const oosM = backtestMetrics(oosSim, candles, split + 1, to, startingCash, intervalMs);
 
   const warnings = [];
   if (fullM.trades < 30) warnings.push(`Only ${fullM.trades} trades. Results this small are not statistically meaningful.`);
@@ -220,5 +220,5 @@ export function runWindow(candles, { type, params = {}, interval = '1h', from, t
   const p = validateStrategy(type, params);
   const rule = makeRule(type, p, candles);
   const sim = simulate(candles, rule, { from, to, feeRate, slippageBps, startingCash });
-  return metrics(sim, candles, from, to, startingCash, INTERVAL_MS[interval] || 3600e3);
+  return backtestMetrics(sim, candles, from, to, startingCash, INTERVAL_MS[interval] || 3600e3);
 }

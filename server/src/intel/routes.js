@@ -9,6 +9,7 @@ import { analyzePortfolio } from './portfolio.js';
 import { createActivity } from './activity.js';
 import { createNews, DIGEST_SYSTEM, headlinesForDigest } from './news.js';
 import { createLab, MAX_COMBINATIONS, MIN_TRADES } from './lab.js';
+import { attachResearch } from './routes-research.js';
 
 const TRACK_EVERY_MS = 5 * 60e3;
 const ALERT_EVERY_MS = 30e3;
@@ -154,6 +155,8 @@ export function attachIntel(app, ctx) {
   // ---- backtesting lab
   app.post('/api/lab/compare', wrap(async (req, res) => res.json(await lab.compare(req.body))));
   app.post('/api/lab/walkforward', wrap(async (req, res) => res.json(await lab.walkForward({ ...req.body, interval: iv(req.body?.interval) }))));
+
+  attachResearch(app, ctx);
 
   /** Background work, started only by the real server. Returns a stop function. */
   function startJobs() {
