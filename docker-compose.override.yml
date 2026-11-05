@@ -1,0 +1,5 @@
+# Local override: host port 5432 is used by a native PostgreSQL service.
+services:
+  db:
+    ports: !override
+      - "5433:5432"

@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { color-scheme: dark; }
+  body {
+    font-family: theme('fontFamily.sans');
+    background:
+      radial-gradient(1200px 500px at 10% -10%, rgba(34, 225, 255, 0.07), transparent 60%),
+      radial-gradient(900px 400px at 100% 0%, rgba(169, 139, 255, 0.07), transparent 60%),
+      #050608;
+    min-height: 100vh;
+  }
+  .num { font-family: theme('fontFamily.mono'); font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  .panel { @apply rounded-md border border-ink-700 bg-ink-900/90 p-4 min-w-0; }
+  .panel-title { @apply mb-3 flex items-center justify-between gap-2 font-display text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300; }
+  .label { @apply text-[10.5px] uppercase tracking-[0.12em] text-mute; }
+  .btn { @apply rounded border px-3 py-2 text-xs font-medium uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-40; }
+  .btn-cyan { @apply border-cyan-neon/60 text-cyan-neon hover:bg-cyan-neon/10; }
+  .btn-lime { @apply border-lime-neon/60 text-lime-neon hover:bg-lime-neon/10; }
+  .btn-rose { @apply border-rose-neon/60 text-rose-neon hover:bg-rose-neon/10; }
+  .btn-ghost { @apply border-ink-600 text-mute hover:text-slate-200; }
+  .field { @apply rounded border border-ink-600 bg-ink-950 px-2.5 py-2 text-sm text-slate-100 outline-none focus:border-cyan-neon/70; }
+  .seg { @apply rounded border border-ink-600 px-2.5 py-1 text-xs text-mute; }
+  .seg[aria-pressed='true'] { @apply border-cyan-neon/70 bg-cyan-neon/10 text-cyan-neon; }
+}
+
+:focus-visible { outline: 2px solid #22e1ff; outline-offset: 2px; }
+
+@keyframes pulse-dot { 50% { opacity: 0.3; } }
+.live-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+@keyframes flash-up { from { color: #3cf2a0; } }
+@keyframes flash-down { from { color: #ff5d7a; } }
+.flash-up { animation: flash-up 0.8s ease-out; }
+.flash-down { animation: flash-down 0.8s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .live-dot, .flash-up, .flash-down { animation: none; }
+}

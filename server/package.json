@@ -1,0 +1,24 @@
+{
+  "name": "signal-lab-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node src/migrate.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.39.0",
+    "cors": "2.8.5",
+    "express": "4.21.2",
+    "pg": "8.13.1",
+    "signal-lab": "file:..",
+    "ws": "8.18.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
