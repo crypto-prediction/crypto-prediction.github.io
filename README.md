@@ -267,6 +267,10 @@ It serves the approved code next to the current code, on the same data. It compa
 - **The globe summarises price data.** It doesn't show blockchain transactions, and its connecting arcs are return correlations.
 - **Server-side jobs.** Alerts, Autopilot and daily reports only run while the server is running.
 
+## License
+
+[MIT](LICENSE) © 2026 muzammil
+
 ---
 
 Not financial advice. Market data © its providers.
