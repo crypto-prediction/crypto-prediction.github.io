@@ -107,6 +107,11 @@ document.addEventListener('click', (e) => {
   location.href = `${BASE}${href.slice(1)}`;
 }, true);
 
+// ---- a tab icon, so browsers don't ask the host for a /favicon.ico that doesn't exist
+const icon = Object.assign(document.createElement('link'), { rel: 'icon', type: 'image/svg+xml' });
+icon.href = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#070a11"/><circle cx="16" cy="16" r="7" fill="none" stroke="#22e1ff" stroke-width="3"/></svg>')}`;
+document.head.append(icon);
+
 // ---- a banner above the app, outside its layout, saying what the demo is
 const banner = document.createElement('div');
 banner.setAttribute('data-demo-banner', '');
