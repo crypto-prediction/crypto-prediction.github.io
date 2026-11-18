@@ -36,7 +36,7 @@ const withSiteName = (html) => {
 };
 
 export default defineConfig({
-  base: process.env.DEMO_BASE || '/crypto-prediction/',
+  base: process.env.DEMO_BASE || '/',
   plugins: [
     react(),
     {

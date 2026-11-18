@@ -3,8 +3,8 @@
 import { createDemoServer } from './server.js';
 import { NativeWebSocket } from './binance.js';
 
-const BASE = import.meta.env.BASE_URL; // for example /crypto-prediction/
-const REPO = 'https://github.com/muzammil11123/crypto-prediction';
+const BASE = import.meta.env.BASE_URL; // / on crypto-prediction.github.io
+const REPO = 'https://github.com/crypto-prediction/crypto-prediction.github.io';
 const demo = createDemoServer();
 const apiPath = (pathname) => {
   const m = pathname.match(/^(?:\/[^/]+)?\/api(\/.*)$/);
