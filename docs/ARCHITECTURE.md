@@ -56,6 +56,10 @@ Shared services are passed in through one context object: `historyFor` and `over
 - Nothing trades automatically. A paper order always comes from an explicit click. Autopilot never receives the paper module.
 - Calendar events and report sections keep their source. Missing data is reported as missing.
 
+## Online demo
+
+`npm --prefix client run build:demo` builds a static copy for GitHub Pages into `client/dist-demo`. `vite.demo.config.js` only swaps the two entry scripts for `src/demo/main-demo.jsx` and `src/demo/lab-demo.jsx`. These install `src/demo/shim.js` before the unchanged app starts. The shim answers `fetch('/api/...')` and the `/ws` socket in the browser (`src/demo/server.js`), with the same response shapes as the server. It imports the server's own modules, which are plain JavaScript: indicators, analysis, backtest, forecast, lab, futures and risk. Market data comes straight from Binance (`src/demo/binance.js`). The paper account and saved backtests live in the visitor's `localStorage` (`src/demo/paper.js`). Anything that needs the database, scheduled jobs, AI or a source without browser access returns HTTP 501 with an explanation. The workflow `.github/workflows/pages.yml` builds and publishes it on every push to `main`.
+
 ## Before hosting
 
 The app has no authentication, and everything assumes one person on their own machine: the paper account, the Arena's local profile, and moderation. Before putting it on a network, add accounts, per-user data, moderator roles and request rate limits.

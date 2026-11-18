@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:demo": "vite build --config vite.demo.config.js",
+    "preview:demo": "vite preview --config vite.demo.config.js --port 4174 --strictPort"
   },
   "dependencies": {
     "lightweight-charts": "4.2.2",

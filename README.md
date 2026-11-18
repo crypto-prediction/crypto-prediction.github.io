@@ -8,11 +8,14 @@ Nothing in the app makes up prices or market events. When a source can't be reac
 
 > Signal Lab is for research and education. It is not financial advice, and it never trades real money.
 
+**Try it online: [muzammil11123.github.io/signal-lab](https://muzammil11123.github.io/signal-lab/)**. The online demo runs entirely in your browser, with live data straight from Binance. See [Online demo](#online-demo) for what it includes.
+
 ![The Signal Lab dashboard](docs/images/dashboard.png)
 
 ## Contents
 
 - [Features](#features)
+- [Online demo](#online-demo)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
 - [How the numbers work](#how-the-numbers-work)
@@ -65,6 +68,21 @@ Open it with the **Intelligence Lab** button beside the dashboard title, or go t
 | | Autopilot | Scheduled market research with findings, an activity log and an audit log. Off by default, and it cannot trade | Shared market-data services |
 
 ![The market heatmap](docs/images/lab-heatmap.png)
+
+## Online demo
+
+**[muzammil11123.github.io/signal-lab](https://muzammil11123.github.io/signal-lab/)** is hosted free on GitHub Pages. GitHub Pages can only serve static files, so the demo has no server or database. Instead, a small layer in the browser (`client/src/demo/`) answers the app's requests by calling Binance directly. It runs the same indicator, signal, backtest, forecast, futures and risk code as the server. The dashboard and Lab code are exactly the same as in the full app.
+
+| In the online demo | Only in the full app |
+|---|---|
+| Live prices, charts, indicators, the research signal and the globe | Model tracker, which needs forecasts saved over time |
+| Backtests, saved in your browser | Alerts, Autopilot and daily reports, which run on the server |
+| Paper trading: your own $10,000 account, saved only in your browser | News, Calendar and Exchanges, whose sources don't allow browser requests |
+| Lab: Heatmap, Forecasts, Futures, Backtest lab, Risk simulator | Order book, Liquidations, Activity, Analyst, Strategy builder, Replay, Journal, Portfolio, Arena |
+
+Tabs that need the full app say so. Every push to `main` rebuilds and republishes the demo (`.github/workflows/pages.yml`). To build it yourself, run `npm --prefix client run build:demo`.
+
+If Binance blocks your region, the demo switches to Binance's public data mirror for spot prices. Futures data has no mirror, so the Futures tab may be unavailable there.
 
 ## Quick start
 
