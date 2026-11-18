@@ -8,7 +8,7 @@ Nothing in the app makes up prices or market events. When a source can't be reac
 
 > Signal Lab is for research and education. It is not financial advice, and it never trades real money.
 
-**Try it online: [muzammil11123.github.io/signal-lab](https://muzammil11123.github.io/signal-lab/)**. The online demo runs entirely in your browser, with live data straight from Binance. See [Online demo](#online-demo) for what it includes.
+**Try it online: [muzammil11123.github.io/crypto-prediction](https://muzammil11123.github.io/crypto-prediction/)**. The online demo runs entirely in your browser, with live data straight from Binance. See [Online demo](#online-demo) for what it includes.
 
 ![The Signal Lab dashboard](docs/images/dashboard.png)
 
@@ -71,7 +71,7 @@ Open it with the **Intelligence Lab** button beside the dashboard title, or go t
 
 ## Online demo
 
-**[muzammil11123.github.io/signal-lab](https://muzammil11123.github.io/signal-lab/)** is hosted free on GitHub Pages. GitHub Pages can only serve static files, so the demo has no server or database. Instead, a small layer in the browser (`client/src/demo/`) answers the app's requests by calling Binance directly. It runs the same indicator, signal, backtest, forecast, futures and risk code as the server. The dashboard and Lab code are exactly the same as in the full app.
+**[muzammil11123.github.io/crypto-prediction](https://muzammil11123.github.io/crypto-prediction/)** is hosted free on GitHub Pages. GitHub Pages can only serve static files, so the demo has no server or database. Instead, a small layer in the browser (`client/src/demo/`) answers the app's requests by calling Binance directly. It runs the same indicator, signal, backtest, forecast, futures and risk code as the server. The dashboard and Lab code are exactly the same as in the full app.
 
 | In the online demo | Only in the full app |
 |---|---|
@@ -89,8 +89,8 @@ If Binance blocks your region, the demo switches to Binance's public data mirror
 You need **Node.js 20+** and **Docker**, or your own PostgreSQL 14+.
 
 ```bash
-git clone https://github.com/muzammil11123/signal-lab.git
-cd signal-lab
+git clone https://github.com/muzammil11123/crypto-prediction.git
+cd crypto-prediction
 npm run install:all                 # installs server/ and client/ dependencies
 npm run db                          # starts PostgreSQL in Docker on port 5432
 cp server/.env.example server/.env
