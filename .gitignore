@@ -1,3 +1,6 @@
 node_modules
 .env
 dist
+
+# machine-specific Docker settings, such as a different database port
+docker-compose.override.yml
